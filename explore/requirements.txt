@@ -1,0 +1,5 @@
+# For the research scripts in explore/pattern_lab (not needed to run the app)
+-r ../app/requirements.txt
+-r ../app/requirements-recogniser.txt
+scikit-learn>=1.4
+matplotlib>=3.8

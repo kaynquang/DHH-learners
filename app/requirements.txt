@@ -1,0 +1,8 @@
+streamlit>=1.50
+praat-parselmouth>=0.4.4
+numpy>=1.26
+scipy>=1.11
+nitime>=0.10
+plotly>=5.20
+pandas>=2.0
+pytest>=8.0

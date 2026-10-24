@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "voices": [
+   "aew",
+   "bdl",
+   "clb",
+   "eey",
+   "ljm",
+   "lnh",
+   "rms",
+   "slt"
+  ],
+  "protocol": "normalise from 2 tokens of each of /s/ /\u0283/ /f/ (see, she, fee twice); training stats from 80 per class",
+  "features": [
+   "cog",
+   "fm",
+   "sd",
+   "skew",
+   "kurt",
+   "e0_2",
+   "e2_4",
+   "e4_6",
+   "e6_8",
+   "relamp",
+   "dur",
+   "contrast",
+   "wobble"
+  ],
+  "calibration_tokens": 6,
+  "tokens_trained_on": 6359,
+  "leave_one_voice_out": {
+   "s_vs_sh_if_sibilant": {
+    "mean": 0.951,
+    "sd": 0.05,
+    "worst": 0.871
+   },
+   "family": {
+    "mean": 0.927,
+    "sd": 0.062,
+    "worst": 0.799
+   },
+   "three_way": {
+    "mean": 0.914,
+    "sd": 0.062,
+    "worst": 0.792
+   }
+  },
+  "weak_hiss_covers": "/f/ and /\u03b8/ (not told apart)"
+ },
+ "sibilant": {
+  "features": [
+   "cog",
+   "fm",
+   "sd",
+   "skew",
+   "kurt",
+   "e0_2",
+   "e2_4",
+   "e4_6",
+   "e6_8",
+   "relamp",
+   "dur",
+   "contrast",
+   "wobble"
+  ],
+  "coef": [
+   -12.07846,
+   -2.045301,
+   3.114581,
+   -3.942806,
+   -1.578355,
+   -11.020688,
+   4.64117,
+   0.661292,
+   1.414115,
+   -0.967705,
+   1.004456,
+   2.513648,
+   -1.641328
+  ],
+  "intercept": -1.958602,
+  "positive": "SH"
+ },
+ "family": {
+  "features": [
+   "relamp",
+   "contrast",
+   "wobble",
+   "sd"
+  ],
+  "coef": [
+   -2.305047,
+   -2.552297,
+   0.09806,
+   2.066561
+  ],
+  "intercept": -1.67213,
+  "positive": "weak"
+ },
+ "family_novowel": {
+  "features": [
+   "contrast",
+   "wobble",
+   "sd"
+  ],
+  "coef": [
+   -3.119857,
+   -0.043972,
+   2.185502
+  ],
+  "intercept": -1.292344,
+  "positive": "weak"
+ }
+}
