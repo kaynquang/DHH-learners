@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+*.pkl
+app/assets/model/w2v_phone/
+SOUNDS/
+boundaries.csv
+
+# personal data: recordings, testing logs (camera and microphone numbers) and the children's profiles stay on this computer
+app/logs/
+app/profiles/
+
+# previews made by the picture scripts in app/learner/assets/mockups
+app/learner/assets/mockups/preview_*.png

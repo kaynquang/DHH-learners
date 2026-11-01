@@ -1,0 +1,12 @@
+streamlit>=1.50
+praat-parselmouth>=0.4.4
+numpy>=1.26
+scipy>=1.11
+nitime>=0.10
+plotly>=5.20
+pandas>=2.0
+pytest>=8.0
+
+# Optional phone recogniser. torch needs the CUDA build for GPU: uv pip install torch --index-url https://download.pytorch.org/whl/cu124
+# torch>=2.6
+# transformers>=5.0

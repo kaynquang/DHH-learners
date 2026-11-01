@@ -1,0 +1,278 @@
+"""Practice page: record or pick a word, get a verdict, then explore it in the Compare, Patterns and Detectors views."""
+import hashlib
+
+import streamlit as st
+
+from fricative import config as C
+from fricative.audio import limit_duration, load
+from fricative.calibrated import load_model, read as read_calibrated
+from fricative.classify import classify
+from fricative.measure import measure
+from fricative.patterns import extract
+from fricative.plots import spectrogram_figure
+from fricative.reference import available as reference_available, load_reference
+from fricative.segment import SegmentationError, estimate_snr, find_boundaries
+from fricative.affricate import classify_affricate, measure_affricate, probability_ch
+from fricative.nasals import classify_nasal
+from fricative.stops import MAX_VOT_MS, VOT_P_MS,classify_stop, classify_stop_probe, heard_stop, measure_vot
+from fricative import phoneme_check
+from views import compare, detectors, patterns, phoneme
+from views.autorecord import auto_record, playback
+from views.context import Ctx
+
+TH_KEYS = {
+    "cog_s_sh_hz": "th_cog",
+    "relamp_f_db": "th_relamp",
+    "cog_margin_hz": "th_cog_margin",
+    "relamp_margin_db": "th_relamp_margin",
+}
+MARK_COLOR = {"green": "green", "yellow": "orange", "red": "red"}
+
+
+def reset_thresholds() -> None:
+    for field, key in TH_KEYS.items():
+        st.session_state[key] = getattr(C.DEFAULT_THRESHOLDS, field)
+
+
+def show_verdict(v, extra: str | None = None) -> None:
+    """Verdict box for the sounds that have no views (stops, nasals, affricates)."""
+    with st.container(border=True, horizontal=True, vertical_alignment="center", gap="large"):
+        st.markdown(f"# :{MARK_COLOR[v.color]}[{v.mark}]", width="content")
+        with st.container():
+            st.markdown(f"### {v.label}")
+            st.markdown(f"{v.message} · target **{word}** {C.PHONE_LABEL[target]}")
+            st.caption(v.tip)
+            if extra:
+                st.caption(extra)
+
+
+for _field, _key in TH_KEYS.items():
+    st.session_state.setdefault(_key, getattr(C.DEFAULT_THRESHOLDS, _field))
+
+
+# ---------- Sidebar ----------
+with st.sidebar:
+    ALL_TARGETS = {**C.TARGETS, **C.STOP_TARGETS, **C.NASAL_TARGETS, **C.AFFRICATE_TARGETS}
+    # one example word per sound, so each of the eight sounds appears once
+    SOUND_WORDS = {}
+    for _w, _p in ALL_TARGETS.items():
+        SOUND_WORDS.setdefault(_p, _w)
+    word = st.segmented_control("Target sounds", list(SOUND_WORDS.values()), default="see", required=True, key="word",
+                                format_func=lambda w: C.PHONE_LABEL[ALL_TARGETS[w]])
+    target = ALL_TARGETS[word]
+    st.caption(f"Say the word “{word}”")
+    st.space("small")
+    if st.session_state.get("calibration") is not None:
+        st.toggle("Use my voice calibration", value=True, key="use_calibration",
+                  help="Judge the recording against your own six calibration recordings instead of fixed thresholds.")
+    with st.expander("Scoring settings", icon=":material/tune:"):
+        st.number_input("CoG threshold /s/–/ʃ/ (Hz)", 1000.0, 10000.0, step=50.0, key="th_cog")
+        st.number_input("Relative amplitude threshold /f/ (dB)", -60.0, 0.0, step=1.0, key="th_relamp")
+        st.number_input("Yellow margin, CoG (Hz)", 0.0, 3000.0, step=50.0, key="th_cog_margin")
+        st.number_input("Yellow margin, relative amplitude (dB)", 0.0, 20.0, step=0.5, key="th_relamp_margin")
+        st.button("Reset to defaults", icon=":material/restart_alt:", on_click=reset_thresholds)
+        st.caption("Provisional values from the two D1 voices. Changes last for this session only.")
+
+th = C.Thresholds(**{field: float(st.session_state[key]) for field, key in TH_KEYS.items()})
+
+# ---------- Input ----------
+st.title("Fricative practice")
+st.caption("Say one word. See where your hiss lands.")
+
+SOURCES = ["Sample", "Record", "Upload"] if reference_available() else ["Record", "Upload"]
+source = st.segmented_control("Input", SOURCES, default=SOURCES[0], required=True, key="source")
+data, name, manual = None, None, None
+if source == "Record":
+    st.caption("Press record and say the word. It stops by itself after 3 seconds.")
+    rec = auto_record("rec")
+    if rec is not None:
+        data, name = rec, "recording.wav"
+elif source == "Upload":
+    up = st.file_uploader("Upload a wav or mp3 file", type=["wav", "mp3"], key="upload")
+    if up is not None:
+        data, name = up.getvalue(), up.name
+else:
+    refs = {r.file: r for r in load_reference()}
+    choice = st.selectbox("D1 sample", list(refs), key="sample")
+    data, name = refs[choice].path.read_bytes(), choice
+    manual = (refs[choice].start_s, refs[choice].end_s)
+
+if data is None:
+    st.info("Record or upload a word to begin.", icon=":material/mic:")
+    st.stop()
+
+playback(data, "practice_play", name)
+try:
+    sound = load(data, name)
+except ValueError as exc:
+    st.error(str(exc))
+    st.stop()
+sound, truncated = limit_duration(sound)
+if truncated:
+    st.warning("The recording is longer than 5 seconds; only the first 5 seconds are used.")
+
+if phoneme_check.available():      # second check: is this the right kind of sound (stop, fricative) for the word?
+    gate_key = f"gate_{hashlib.md5(data).hexdigest()[:10]}"
+    if gate_key not in st.session_state:
+        with st.spinner("Checking the first sound…"):
+            st.session_state[gate_key] = phoneme_check.first_consonant(sound)
+    opens = st.session_state[gate_key]
+    if phoneme_check.wrong_kind(target, opens):
+        st.warning(f"The recogniser hears {phoneme_check.GATE_LABEL[opens]} at the start of this recording, which is a different kind "
+                   f"of sound from {C.PHONE_LABEL[target]} in \"{word}\". Check that you picked the word you said; it is not scored.",
+                   icon=":material/hearing:")
+        st.stop()
+
+if word in C.NASAL_TARGETS:
+    if not phoneme_check.available():
+        st.info(f"Scoring {C.PHONE_LABEL[target]} needs the phone recogniser (torch, transformers and the wav2vec2 checkpoint), "
+                "which is not installed here. Praat formant measures alone are only 63% accurate for /m/ against /n/.", icon=":material/info:")
+        st.stop()
+    nasal_key = f"nasal_{hashlib.md5(data).hexdigest()[:10]}"
+    if nasal_key not in st.session_state:
+        with st.spinner("Listening for the nasal…"):
+            st.session_state[nasal_key] = phoneme_check.nasal_reading(sound)[0]
+    p_m = st.session_state[nasal_key]
+    nv = classify_nasal(p_m, target)
+    if nv is None:
+        st.warning("No nasal sound was heard. Check the word, and leave a short pause before it.")
+        st.stop()
+    conf = p_m if nv.heard == "m" else 1 - p_m
+    show_verdict(nv, f"Recogniser confidence in {C.PHONE_LABEL[nv.heard]}: {conf:.0%} (an estimate). Experimental: 98% on eight ARCTIC "
+                     "voices in running speech; not yet tested on isolated words or on deaf and hard-of-hearing speakers.")
+    st.plotly_chart(spectrogram_figure(sound, 0.0, 0.0), width="stretch", alt="Spectrogram of the recording")
+    st.stop()
+
+if word in C.AFFRICATE_TARGETS:
+    try:
+        aff = measure_affricate(sound)
+    except SegmentationError as exc:
+        st.warning(f"{exc}. Check the word, and leave a short pause before it.")
+        st.plotly_chart(spectrogram_figure(sound, 0.0, 0.0), width="stretch", alt="Spectrogram of the recording")
+        st.stop()
+    if phoneme_check.available():
+        try:
+            b = find_boundaries(sound)
+            p_ch = phoneme_check.probability_ch(sound, b.onset_s, b.offset_s)
+            how = "Experimental: a probe on the recogniser's features of the hiss, 96% balanced accuracy on eight ARCTIC voices in running speech (worst voice 91%)."
+        except SegmentationError:
+            p_ch = None
+    else:
+        p_ch = None
+    if p_ch is None:
+        p_ch = probability_ch(aff)
+        how = ("Experimental: 80% balanced accuracy on eight ARCTIC voices in running speech, worst voice 74%. On four dictionary "
+               "recordings of see and she it leaned towards /tʃ/ twice, so treat green with care.")
+    show_verdict(classify_affricate(p_ch), f"Chance of /tʃ/ rather than /ʃ/: {p_ch:.0%} (an estimate). {how}")
+    st.plotly_chart(spectrogram_figure(sound, aff.onset_s, aff.onset_s + aff.rise_ms / 1000), width="stretch",
+                    alt="Spectrogram with the rise of the hiss shaded")
+    with st.container(horizontal=True, gap="large"):
+        st.metric("Rise time", f"{aff.rise_ms:.0f} ms")
+        st.metric("Steepest climb", f"{aff.slope_db_per_ms:.1f} dB/ms")
+        st.metric("Hiss length", f"{aff.hiss_ms:.0f} ms")
+    st.caption("An affricate starts abruptly (about 36 ms to reach full strength in the data) and a plain /ʃ/ fades in (about 66 ms).")
+    st.stop()
+
+if word in C.STOP_TARGETS:
+    try:
+        stop = measure_vot(sound, strict=False)
+    except SegmentationError as exc:
+        st.warning(f"{exc}. Check the word, and leave a short pause before it.")
+        st.plotly_chart(spectrogram_figure(sound, 0.0, 0.0), width="stretch", alt="Spectrogram of the recording")
+        st.stop()
+    if stop.vot_ms > MAX_VOT_MS:
+        st.warning(f"The gap between the burst and the voice is {stop.vot_ms:.0f} ms, much longer than a normal stop. The score below may be "
+                   "unreliable: check the word, leave a short pause before it, and start speaking right after you press Record.")
+    if phoneme_check.available():
+        p_p = phoneme_check.probability_p(sound, stop.burst_s, stop.voicing_s)
+        show_verdict(classify_stop_probe(p_p, target), f"Chance of /p/ rather than /b/: {p_p:.0%} (an estimate, from the recogniser's features of the release). "
+                     f"VOT rule alone says {C.PHONE_LABEL[heard_stop(stop.vot_ms)]}.")
+    else:
+        show_verdict(classify_stop(stop, target))
+    st.plotly_chart(spectrogram_figure(sound, stop.burst_s, stop.voicing_s), width="stretch",
+                    alt="Spectrogram with the interval from the burst to the start of voicing shaded")
+    with st.container(horizontal=True, gap="large"):
+        st.metric("VOT", f"{stop.vot_ms:.0f} ms")
+        st.metric("Burst at", f"{stop.burst_s * 1000:,.0f} ms")
+        st.metric("Voicing starts", f"{stop.voicing_s * 1000:,.0f} ms")
+    st.caption(f"VOT is the time from the burst to the first voiced frame. About {VOT_P_MS:.0f} ms or more sounds like /p/ and less like /b/. "
+               "Experimental: the threshold comes from eight ARCTIC voices in running speech (balanced accuracy 0.88), and the "
+               "recording must start with a short pause, because speech before the word confuses the burst finder.")
+    st.stop()
+
+verdict_box = st.container()
+
+# ---------- Boundaries ----------
+duration = float(sound.xmax)
+seg_failed = False
+try:
+    b = find_boundaries(sound)
+    auto, has_vowel = (b.onset_s, b.offset_s), b.found_vowel
+except SegmentationError as exc:
+    auto, has_vowel, seg_failed = (0.0, min(duration, 0.3)), True, True
+    st.warning(f"{exc}. Drag the slider below to select the hiss; scoring starts once you do.")
+
+st.subheader("Spectrogram")
+digest = hashlib.md5(data).hexdigest()[:10]
+onset, offset = st.slider(
+    "Frication boundaries (s)", 0.0, duration,
+    (round(auto[0], 3), round(auto[1], 3)), step=0.001, format="%.3f", key=f"bounds_{digest}",
+)
+spec_alt = "Spectrogram of the recording with the frication boundaries marked"
+if seg_failed and (onset, offset) == (round(auto[0], 3), round(auto[1], 3)):
+    st.plotly_chart(spectrogram_figure(sound, onset, offset), width="stretch", alt=spec_alt)
+    st.stop()
+if offset - onset < C.MIN_FRICATION_S:
+    st.error("The selected hiss is too short to measure (< 30 ms). Widen the slider.")
+    st.stop()
+
+m = measure(sound, onset, offset, has_vowel)
+v = classify(m, target, th)
+v_rule, reading, cal = v, None, st.session_state.get("calibration")
+if cal is not None and st.session_state.get("use_calibration", True):
+    reading = read_calibrated(extract(sound, onset, offset, has_vowel, with_f2=False), cal, load_model(), target)
+    v = reading.verdict
+
+if phoneme_check.available() and word in C.TARGETS:
+    ck = f"hiss_{digest}_{onset:.3f}_{offset:.3f}"
+    if ck not in st.session_state:
+        st.session_state[ck] = phoneme_check.check(sound, onset, offset).heard
+    v = phoneme_check.reconcile(v, st.session_state[ck])
+
+with verdict_box:
+    with st.container(border=True, horizontal=True, vertical_alignment="center", gap="large"):
+        st.markdown(f"# :{MARK_COLOR[v.color]}[{v.mark}]", width="content")
+        with st.container():
+            st.markdown(f"### {v.label}")
+            st.markdown(f"{v.message} · target **{word}** {C.PHONE_LABEL[target]}")
+            st.caption(v.tip)
+            if v.note:
+                st.caption(v.note)
+            if reading is not None:
+                conf = lambda x: ">99%" if x > 0.995 else "<1%" if x < 0.005 else f"{x:.0%}"
+                p = reading.probs
+                st.caption(f"Calibrated to your voice ({cal.n_tokens} recordings) · model confidence: /s/ {conf(p['s'])}, "
+                           f"/ʃ/ {conf(p['sh'])}, weak hiss {conf(p['f'])} (an estimate, not a measured probability) · "
+                           f"rule-based reading: {v_rule.label}, heard {C.PHONE_LABEL[v_rule.heard]}")
+            elif cal is None:
+                st.caption("Tip: the Calibrate page tunes the scoring to your voice.")
+        st.image(str(C.ARTICULATION_IMAGE[target]), width=170,
+                 caption=f"How to make {C.PHONE_LABEL[target]}")
+
+st.plotly_chart(spectrogram_figure(sound, onset, offset), width="stretch", alt=spec_alt)
+
+with st.container(horizontal=True, gap="large"):
+    st.metric("CoG", f"{m.cog_hz:,.0f} Hz")
+    st.metric("Relative amplitude", "—" if m.relamp_db is None else f"{m.relamp_db:.1f} dB")
+    st.metric("Peak (Fm)", f"{m.fm_hz:,.0f} Hz")
+    st.metric("Duration", f"{m.duration_ms:.0f} ms")
+    st.metric("SNR (est.)", f"{estimate_snr(sound):.0f} dB")
+
+# ---------- Views ----------
+st.space("small")
+VIEWS = {"Compare": compare, "Patterns": patterns, "Detectors": detectors} if reference_available() else {"Patterns": patterns, "Detectors": detectors}
+if phoneme_check.available():        # needs torch, transformers and the checkpoint; the app works without them
+    VIEWS["Phoneme check"] = phoneme
+view = st.segmented_control("View", list(VIEWS), default=next(iter(VIEWS)), required=True, key="view")
+VIEWS[view].render(Ctx(sound=sound, data=data, name=name, word=word, target=target, onset=onset, offset=offset,
+                       has_vowel=has_vowel, m=m, th=th, verdict=v, manual=manual))

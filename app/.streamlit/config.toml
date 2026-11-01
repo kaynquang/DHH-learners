@@ -1,0 +1,34 @@
+# Quiet Japanese palette: washi paper, sumi ink, ai (indigo) accent, shu (vermilion) for attention.
+[client]
+toolbarMode = "minimal"
+
+[server]
+# files in app/static are served at /app/static (the MediaPipe face model for the lip mirror, kept here so it works without a network)
+enableStaticServing = true
+
+[theme]
+base = "light"
+primaryColor = "#2e4a62"
+backgroundColor = "#f7f4ee"
+secondaryBackgroundColor = "#efe9df"
+textColor = "#2b2b2b"
+borderColor = "#ddd6ca"
+linkColor = "#2e4a62"
+blueColor = "#2e4a62"
+greenColor = "#6e8b54"
+orangeColor = "#b8862b"
+yellowColor = "#b8862b"
+redColor = "#c0432e"
+grayColor = "#8c8780"
+font = "'Zen Kaku Gothic New':https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
+headingFont = "'Shippori Mincho':https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&display=swap"
+headingFontWeights = [600, 600, 500, 500, 500, 500]
+metricValueFontSize = "1.6rem"
+metricValueFontWeight = 500
+baseRadius = "0.25rem"
+showWidgetBorder = true
+showSidebarBorder = true
+paddingTop = "2.5rem"
+dataframeHeaderBackgroundColor = "#efe9df"
+dataframeBorderColor = "#ddd6ca"
+chartCategoricalColors = ["#2e4a62", "#c08a3e", "#6e8b54", "#c0432e", "#8c8780"]
