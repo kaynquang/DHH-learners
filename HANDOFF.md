@@ -1,5 +1,7 @@
 # DHH-learners: handoff
 
+> **Outdated (state of 2026-10-28). Read `HANDOFF_2026-11-02.md` first.**
+
 Everything needed to continue this work without the previous conversation. State as of **2026-10-28**. The user writes in Vietnamese and expects replies in Vietnamese. The detailed method history (in Vietnamese) is in `app/METHOD_NOTES.md`; read it after this file.
 
 ## 1. What this project is

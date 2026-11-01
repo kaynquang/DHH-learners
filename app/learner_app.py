@@ -6,6 +6,7 @@ Open another word with ?word=she (only "see" has its full content so far), or us
 The record panel on the right is replaced by the result once a recording is scored; "Record again" brings the record button back.
 """
 import streamlit as st
+from pathlib import Path
 
 from fricative import warmup
 from fricative.audio import load
@@ -16,7 +17,7 @@ from learner.lessons import LESSONS, ORDER
 from learner.mic import affricate_settings as mic_affricate_settings, fricative_settings as mic_fricative_settings, guide_settings as mic_guide_settings, mic
 from learner.motion import mouth_motion, mouth_steps
 
-st.set_page_config(page_title="Practice", page_icon=":material/graphic_eq:", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Practice", page_icon=str(Path(__file__).resolve().parent / "learner" / "assets" / "seesound_logo.png"), layout="wide", initial_sidebar_state="collapsed")
 
 @st.cache_resource(show_spinner="Getting ready… 準備中…")
 def _ready() -> dict:
@@ -46,20 +47,40 @@ if page == "map":                                                           # th
 st.html(screen.top_bar(index, len(ORDER), stars.total(last_profile())))
 
 
+open_all = st.query_params.get("open") == "all"                           # ?open=all: every sound open (for a teacher)
+progress = stars.load(last_profile())
+is_open = {w: open_all or stars.unlocked(progress, w) for w in ORDER}      # a sound opens when the one before it has a star (learner/stars.py)
+
+
 def go(target: str) -> None:
     """Move to another sound: it opens with the record button, not with an earlier result."""
     for w in (word, target):
         st.session_state.pop(f"mic_{w}_wav", None)
     st.query_params.clear()
     st.query_params["word"] = target
+    if open_all:
+        st.query_params["open"] = "all"
 
 
 with st.container(key="nav", horizontal=True, vertical_alignment="center"):
+    nxt = ORDER[min(index, len(ORDER) - 1)]
     st.button("", key="nav_prev", icon=":material/chevron_left:", disabled=index == 1, on_click=go, args=(ORDER[max(index - 2, 0)],))
-    for w in ORDER:                                  # the sounds as a row of buttons; the open one is filled
-        st.button(LESSONS[w].label, key=f"nav_{w}", type="primary" if w == word else "secondary", on_click=go, args=(w,))
-    st.button("", key="nav_next", icon=":material/chevron_right:", disabled=index == len(ORDER), on_click=go, args=(ORDER[min(index, len(ORDER) - 1)],))
+    for w in ORDER:                                  # the sounds as a row of buttons; the open one is filled; a sound not open yet cannot be pressed
+        st.button(LESSONS[w].label, key=f"nav_{w}", type="primary" if w == word else "secondary", on_click=go, args=(w,), disabled=not is_open[w],
+                  help=None if is_open[w] else f"First get a star on {LESSONS[ORDER[ORDER.index(w) - 1]].label} · 先在前一個聲音拿到一顆星")
+    st.button("", key="nav_next", icon=":material/chevron_right:", disabled=index == len(ORDER) or not is_open[nxt], on_click=go, args=(nxt,))
     st.button("Sound check 聲音檢查", key="nav_sound", icon=":material/tune:", on_click=lambda: st.query_params.update({"page": "sound"}))
+
+if not is_open[word]:                                # opened by its address before its turn: say why, and offer the sound to do now
+    here = stars.frontier(progress) or ORDER[0]
+    prev = ORDER[ORDER.index(word) - 1]
+    st.html(f'<div style="max-width:640px;margin:40px auto;background:#FBF3DC;border:3px solid #1B2440;border-radius:24px;padding:28px 30px;text-align:center;color:#1B2440">'
+            f'<div style="font-size:30px;font-weight:900">🔒 Not open yet <span style="font-weight:700;color:#3A4664">還沒打開</span></div>'
+            f'<div style="font-size:20px;font-weight:700;margin-top:12px">First get a star on {LESSONS[prev].label} {prev}.<br>'
+            f'<span style="color:#3A4664">先在 {LESSONS[prev].label} {prev} 拿到一顆星。</span></div></div>')
+    _, mid, _ = st.columns([1, 1, 1])
+    mid.button(f"Go to {LESSONS[here].label} {here} 前往", key="locked_go", type="primary", width="stretch", on_click=go, args=(here,))
+    st.stop()
 
 lip = lesson.phone in ("m", "p", "b", "n", "tʃ", "s", "sh")        # the lips can be seen: these lessons have their own layout, the sky page (learner/sky.py)
 step = st.query_params.get("step")                      # ?step=2&hold=1 stays on one step (to check it)

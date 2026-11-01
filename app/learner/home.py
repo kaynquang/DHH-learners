@@ -1,13 +1,16 @@
-"""The home page "SeeSound", drawn to the user's second home mockup (assets/mockups/home_v2_path.png, made by an image bot from the assistant's brief; the first one is home_v1_cards.png):
-the logo and the blue mascot with a big "Continue" button on the left; the PATH of the eight sounds on the right (done = green check, the next one = big blue with "START", the others = grey, stars under each);
-a banner at the top with the child, the stars and "Teachers"; "Sound Check" and "My Stars" as two small buttons at the bottom right.
-With no child saved yet (the first time the app is opened) the mascot welcomes the child and the big button leads to Sound Check; "Skip for now" goes to the map.
-The mascot, the logo, the node pictures and the texts are the assistant's (the mockup's pictures are not used): to be reviewed. The mockup's "3 days" chip is not drawn: nothing counts days.
-"My Stars" has no page of its own: it opens the map. "Teachers" opens the Dev app (port 8501 of this computer).
+"""The home page "SeeSound". On a computer it is the image bot's own picture (assets/mockups/home_returning.png and home_first_time.png), prepared by
+assets/mockups/make_home_parts.py: the first time (no child) the picture as it is; for a child, its neutral version (every node grey) with pieces of the bot's drawing put
+back where they are true for this child: their face (boy or girl, learner/children.py), name and star total in the banner; every sound that has a star lit in yellow with
+its stars under it; the sound to do now in light blue with the START ribbon (on /sh/ the bot's own START node); "Next: ..." under the button. Sounds open one after the
+other (learner/stars.py: unlocked): a sound not open yet has no link, only a hint. Invisible tap areas lie on the buttons and on the open nodes.
+On a narrow screen (a phone) the picture does not fit: the page drawn below with code is shown instead (same states).
+The mockup's "3 days" chip is covered: nothing counts days yet. "My Stars" opens the map. "Teachers" opens the Dev app (port 8501 of this computer). ?open=all opens every sound.
 """
 from __future__ import annotations
 
 import base64
+import json
+import hashlib
 from functools import lru_cache
 from html import escape
 from pathlib import Path
@@ -17,7 +20,7 @@ import streamlit as st
 
 from fricative.calibrated import last_profile, list_profiles, load_room, remember_profile
 
-from . import stars
+from . import children, stars
 from .lessons import LESSONS, ORDER
 from .pictures import ART, MEANING
 from .screen import svg_img
@@ -35,6 +38,19 @@ def _mascot() -> str:
 
 def u(px: float) -> str:
     return f"{px / W * 100:.3f}cqw"
+
+
+@lru_cache(maxsize=1)
+def _brand_logo() -> str:
+    path = Path(__file__).resolve().parent / "assets" / "seesound_logo.png"
+    return '<img alt="SeeSound" src="data:image/png;base64,' + base64.b64encode(path.read_bytes()).decode("ascii") + '">'
+
+
+def _home_picture_url(name: str) -> str:
+    """Invalidate browser-cached mockup art whenever its file contents change."""
+    path = Path(__file__).resolve().parents[1] / "static" / name
+    version = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+    return f"/app/static/{name}?v={version}"
 
 
 def _svg(inner: str, box: str = "0 0 100 100") -> str:
@@ -85,6 +101,9 @@ CSS = f"""
 .hm-eye img, .hm-mascot img, .hm-child .av img {{ width: 100%; height: 100%; display: block; }}
 .hm-eye, .hm-word, .hm-tag, .hm-hero, .hm-mascot, .hm-foot {{ display: none; }}      /* drawn in the picture; shown again only on a narrow screen, where the picture is not used */
 .hm-eye {{ left: {u(128)}; top: {u(26)}; width: {u(64)}; height: {u(52)}; }}
+.hm-brand {{ position:absolute; left:{u(112)}; top:{u(14)}; width:{u(104)}; height:{u(96)}; background:#D7EBFF; z-index:4; display:flex; align-items:center; justify-content:center; pointer-events:none; }}
+.hm-brand img {{ width:{u(96)}; height:{u(96)}; object-fit:contain; }}
+@media (max-width:860px) {{ .hm-stage > .hm-brand.hm-live {{ display:flex !important; width:96px; height:96px; margin:0 auto; background:transparent; }} .hm-brand img {{ width:96px; height:96px; }} }}
 .hm-word {{ left: {u(36)}; top: {u(76)}; font-size: {u(64)}; font-weight: 900; letter-spacing: -2px; line-height: 1.05; white-space: nowrap; }} .hm-word i {{ font-style: normal; color: #2F6FE4; }}
 .hm-tag {{ left: {u(42)}; top: {u(150)}; font-size: {u(21)}; font-weight: 800; line-height: 1.25; }} .hm-tag span {{ display: block; }}
 .hm-hero {{ left: {u(34)}; top: {u(262)}; width: {u(300)}; height: {u(276)}; box-sizing: border-box; background: #FBF3DC; border: 3px solid {_INK}; border-radius: {u(22)}; z-index: 1; box-shadow: {u(6)} {u(7)} 0 rgba(27,36,64,.14); }}
@@ -141,9 +160,24 @@ CSS = f"""
 .hm-pick {{ position: absolute; z-index: 9; }} .hm-pick summary {{ display: block; width: 100%; height: 100%; list-style: none; cursor: pointer; border-radius: {u(18)}; }}
 .hm-pick summary::-webkit-details-marker {{ display: none; }} .hm-pick summary:hover {{ background: rgba(255,255,255,.16); }} .hm-pick .hm-list {{ top: 100%; }}
 .hm-show-hot .hm-hot, .hm-show-hot .hm-pick {{ outline: 2px dashed #E5484D; }}                                   /* ?hot=1: show the tap areas (to check them) */
-@media (min-width: 861px) {{ .hm-stage > :not(.hm-hot):not(.hm-pick) {{ display: none !important; }} }}          /* on a computer: only the picture and its tap areas */
+.hm-hot.locked {{ cursor: not-allowed; }} .hm-hot.locked:hover {{ background: none; }}
+.hm-node.locked {{ opacity: .5; cursor: not-allowed; }}
+.hm-part {{ position: absolute; z-index: 3; pointer-events: none; display: block; }}
+.hm-part.lit {{ filter: drop-shadow(0 0 {u(8)} rgba(255, 200, 50, .85)); }}
+.hm-part.now {{ animation: hm-glow 1.8s ease-in-out infinite; }} .hm-part.ribbon {{ z-index: 4; animation: hm-bob 1.8s ease-in-out infinite; }}
+@keyframes hm-glow {{ 0%, 100% {{ filter: drop-shadow(0 0 {u(3)} rgba(80, 140, 255, .5)); }} 50% {{ filter: drop-shadow(0 0 {u(12)} rgba(80, 140, 255, .9)); }} }}
+@keyframes hm-bob {{ 0%, 100% {{ transform: translateY(0); }} 50% {{ transform: translateY({u(-3)}); }} }}
+@media (prefers-reduced-motion: reduce) {{ .hm-part.now, .hm-part.ribbon {{ animation: none; }} }}
+.hm-patch {{ position: absolute; z-index: 2; border-radius: {u(8)}; pointer-events: none; }}
+.hm-who {{ position: absolute; z-index: 3; display: flex; align-items: center; gap: {u(8)}; color: #fff; pointer-events: none; font-family: 'Nunito', system-ui, sans-serif; }}
+.hm-who .nm {{ font-size: {u(25)}; font-weight: 800; max-width: {u(140)}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.hm-who .dn {{ font-size: {u(15)}; margin-right: {u(14)}; opacity: .9; }} .hm-who img {{ width: {u(30)}; height: {u(30)}; }}
+.hm-who b {{ font-size: {u(26)}; font-weight: 900; color: #F5C842; }}
+.hm-nexttxt {{ position: absolute; z-index: 3; display: flex; align-items: center; justify-content: center; font-size: {u(15)}; font-weight: 700; color: #1B2440; pointer-events: none;
+  white-space: nowrap; font-family: 'Nunito', 'Noto Sans TC', system-ui, sans-serif; }}
+@media (min-width: 861px) {{ .hm-stage > :not(.hm-hot):not(.hm-pick):not(.hm-live) {{ display: none !important; }} }}          /* on a computer: only the picture, its live pieces and tap areas */
 @media (max-width: 860px) {{
-  .hm-hot, .hm-pick {{ display: none !important; }}
+  .hm-hot, .hm-pick, .hm-live {{ display: none !important; }}
   .hm-bgfix {{ display: none; }} .block-container {{ padding: 12px 14px 0 !important; }} .hm-word, .hm-tag, .hm-mascot, .hm-foot {{ display: block; }} .hm {{ width: 100%; }} .hm-stage {{ aspect-ratio: auto; display: flex; flex-direction: column; gap: 14px; padding-bottom: 60px; }}
   .hm-stage > *, .hm-node {{ position: static !important; transform: none !important; }}
   .hm-trail, .hm-eye {{ display: none; }} .hm-banner {{ background: #2B4C8C; }} .hm-banner {{ width: auto; border-radius: 18px; flex-wrap: wrap; height: auto; padding: 12px 16px; gap: 10px 14px; }}
@@ -181,10 +215,12 @@ def render() -> None:
     first_time = not child                                   # no child saved yet: the very first time the app is opened
     progress = stars.load(child)
     state = {w: stars.status(progress, w) for w in ORDER}
-    best = {w: progress.get(w, {}).get("best", 0) for w in ORDER}
-    now = next((w for w in ORDER if state[w] != "done"), None)
+    best = {w: stars.best(progress, w) for w in ORDER}
+    now = stars.frontier(progress)                           # the sound to do now: the first one with no star yet
+    is_open = {w: stars.unlocked(progress, w) or st.query_params.get("open") == "all" for w in ORDER}      # ?open=all: every sound open (for a teacher)
+    face = children.gender(child) or "boy"
     items = "".join(f'<a href="?page=home&child={quote(n)}" target="_self"{" class=on" if n == child else ""}>{"✓ " if n == child else ""}{escape(n)}</a>' for n in names)
-    who = (f'<span class="av">{_ic(AVATAR)}</span><span>{escape(child)} ▾</span>' if child
+    who = (f'<span class="av"><img src="/app/static/home_parts/{face}.png" alt=""></span><span>{escape(child)} ▾</span>' if child
            else f'<span class="av" style="border-color:transparent">{_ic(ADD)}</span><span>Add a child <span class="small">新增學生 ▾</span></span>')
     banner = (f'<div class="hm-banner"><details class="hm-child"><summary>{who}</summary><div class="hm-list">{items}'
               '<a class="add" href="?page=sound" target="_self">＋ Add / record a child 新增或錄製學生</a></div></details>'
@@ -193,21 +229,23 @@ def render() -> None:
     nodes = ""
     for w in ORDER:
         x, y = POS[w]
-        cls = "done" if state[w] == "done" else "now" if w == now else "part" if best[w] else ""
+        cls = "done" if state[w] == "done" else "part" if best[w] else ""
         inner = _ic(CHECK) if state[w] == "done" else _ic(f'<svg viewBox="0 0 100 100">{ART[w]}</svg>')
-        start = '<div class="hm-start">NEXT 下一個</div>' if (w == now and first_time) else '<div class="hm-start">START 開始</div>' if w == now else ""
+        start = ""
         stars_row = "★" * best[w] if best[w] else ""
-        nodes += (f'<a class="hm-node {cls}" href="?word={w}" target="_self" style="left:{u(x)};top:{u(y)}" aria-label="{escape(LESSONS[w].label)} {w}">{start}<div class="c">{inner}</div>'
-                  f'<div class="l">{escape(LESSONS[w].label)} {w}</div><div class="s">{stars_row}</div></a>')
-    target_word = now or ORDER[0]
+        tag, link = ("a", f' href="?word={w}" target="_self"') if is_open[w] else ("div", f' title="{escape(_locked_hint(w))}"')
+        nodes += (f'<{tag} class="hm-node {cls}{"" if is_open[w] else " locked"}"{link} style="left:{u(x)};top:{u(y)}" aria-label="{escape(LESSONS[w].label)} {w}">{start}<div class="c">{inner}</div>'
+                  f'<div class="l">{escape(LESSONS[w].label)} {w}</div><div class="s">{stars_row}</div></{tag}>')
+    # "Continue" goes to the sound to do now; once every sound has a star, to the first one without 3 stars; when all have 3, to the map
+    target_word = now or next((w for w in ORDER if best[w] < stars.MAX_STARS), None)
     if first_time:
         hero = (f'<div class="hm-hero"></div><div class="hm-mascot">{_mascot()}</div><div class="hm-bubble">Hi! Let\'s see your sounds!<br>嗨！一起來看見你的聲音！</div>'
                 '<a class="hm-go two" href="?page=sound" target="_self"><span>Let\'s start 開始吧<small>First, a quick sound check 先做聲音檢查</small></span></a>'
                 '<a class="hm-skip" href="?page=map" target="_self">Skip for now 先跳過</a>')
     else:
-        nxt = f'Next: {escape(LESSONS[target_word].label)} {target_word} {escape(MEANING[target_word])}' if now else 'All done! 全部完成'
+        nxt = _next_text(target_word)
         hero = (f'<div class="hm-hero"></div><div class="hm-mascot">{_mascot()}</div>'
-                f'<a class="hm-go" href="{"?word=" + target_word if now else "?page=map"}" target="_self">Continue 繼續</a><div class="hm-next">{nxt}</div>')
+                f'<a class="hm-go" href="{"?word=" + target_word if target_word else "?page=map"}" target="_self">Continue 繼續</a><div class="hm-next">{nxt}</div>')
     has_room = bool(child) and load_room(child) is not None
     quick = (f'<a class="hm-quick hm-q1" href="?page=sound" target="_self">{_ic(MIC)}<span>Sound Check<small>聲音檢查 {"✓" if has_room else ""}</small></span>'
              f'{"" if has_room else "<span class=hm-pill>first time 第一次</span>"}</a>'
@@ -219,13 +257,21 @@ def render() -> None:
                  f'<div class="hm-deco" style="left:{u(826)};top:{u(96)};width:{u(50)};height:{u(62)}">{_ic(FLAG)}</div>'
                  + "".join(f'<div class="hm-deco" style="left:{u(x)};top:{u(y)};width:{u(s)};height:{u(s)}">{_ic(_svg(f"<polygon points=\"50,6 62,36 94,38 69,58 78,92 50,73 22,92 31,58 6,38 38,36\" fill=\"{col}\" {S} stroke-width=\"7\"/>"))}</div>'
                            for x, y, s, col in ((836, 232, 30, "#FFC800"), (672, 388, 28, "#FFC800"), (968, 168, 26, "#9CC4F0"), (812, 268, 20, "#4FA85A"))))
-    # On a computer the page IS the bot's picture, unchanged (learner/assets/mockups/make_home_pictures.py only sharpens it): the app adds invisible tap areas on its buttons
-    # and nodes. Everything drawn above is only for a narrow screen, where the picture does not fit.
-    hot = _hotspots(first_time, target_word if now else None, items)
+    # On a computer the page is the bot's picture (learner/assets/mockups/make_home_parts.py): the first-time one as it is; for a child, its neutral version with pieces of
+    # the bot's own drawing put back where they are true for this child (their face, name and stars, each sound lit when it has a star, START on the sound to do now),
+    # and invisible tap areas on the buttons and on the open nodes. Everything drawn above is only for a narrow screen, where the picture does not fit.
+    hot = _hotspots(first_time, target_word, items, is_open) + ("" if first_time else _live(child, face, best, now))
     picture = "home_first.jpg" if first_time else "home_ret.jpg"
-    st.html(f'<div class="hm-bgfix" style="background-image:url(/app/static/{picture})"></div>'
+    picture_url = _home_picture_url(picture)
+    if first_time:
+        # Reuse the existing neutral artwork over the mockup's baked-in progress.
+        for x, y, wd, ht in ((358, 108, 178, 254), (478, 345, 92, 150)):
+            hot += (f'<div class="hm-live" style="position:absolute;z-index:2;pointer-events:none;left:{u(x)};top:{u(y)};width:{u(wd)};height:{u(ht)};'
+                    f'background-image:url({_home_picture_url("home_ret.jpg")});background-size:{u(3072)} {u(572)};'
+                    f'background-position:-{u(1024 + x)} -{u(y)}"></div>')
+    st.html(f'<div class="hm-bgfix" style="background-image:url({picture_url})"></div>'
             f'<div class="hm{" hm-first" if first_time else ""}{" hm-show-hot" if st.query_params.get("hot") == "1" else ""}"><div class="hm-stage">'
-            f'<div class="hm-eye">{_ic(EYE)}</div><div class="hm-word"><i>See</i>Sound</div><div class="hm-tag">See your sound<span>看見你的聲音</span></div>'
+            f'<div class="hm-brand hm-live">{_brand_logo()}</div><div class="hm-word"><i>See</i>Sound</div><div class="hm-tag">See your sound<span>看見你的聲音</span></div>'
             f'{hero}{banner}<div class="hm-path">{_trail()}{nodes}</div>{quick}'
             f'<div class="hm-foot">made for learners who are deaf or hard of hearing 為聽障學習者設計</div>{hot}</div></div>')
 
@@ -243,11 +289,64 @@ HOT_FIRST = [(388, 190, 515, 320, "?word=she", "/ʃ/ she"), *[(*b, f"?word={w}",
 TEACHER_AREAS = [(812, 15, 962, 56, TEACHER_URL, "Teachers 老師"), (968, 17, 1010, 56, "?page=sound", "Sound Check 聲音檢查")]       # the gear opens the set-up page
 
 
-def _hotspots(first_time: bool, next_word: str | None, items: str) -> str:
+PARTS = json.loads((Path(__file__).resolve().parent / "home_parts.json").read_text(encoding="utf-8"))       # where the pieces go (make_home_parts.py)
+_SHORT = {"ʃ": "sh", "tʃ": "ch"}                                                # the mockup writes /sh/ and /ch/ on its nodes
+
+
+def _sound(w: str) -> str:
+    return f"/{_SHORT.get(LESSONS[w].phone, LESSONS[w].phone)}/"
+
+
+def _next_text(w: str | None) -> str:
+    return f"Next: {_sound(w)} {w} {MEANING[w]}" if w else "All done! 全部完成"
+
+
+def _locked_hint(w: str) -> str:
+    prev = ORDER[ORDER.index(w) - 1]
+    return f"First get a star on {_sound(prev)} {prev} · 先在 {_sound(prev)} {prev} 拿到一顆星"
+
+
+def _part(name: str, box: dict, cls: str = "", scale: float = 1.0, cx: float | None = None, cy: float | None = None, ox: float = 0, oy: float = 0) -> str:
+    """A piece of the bot's drawing (app/static/home_parts), at its place on the picture; scaled about (cx, cy) and moved to (ox, oy) when given."""
+    x, y, wd, ht = box["x"], box["y"], box["w"], box["h"]
+    if cx is not None:
+        x, y, wd, ht = ox + (x - cx) * scale, oy + (y - cy) * scale, wd * scale, ht * scale
+    return f'<img class="hm-live hm-part {cls}" src="/app/static/home_parts/{name}.png" alt="" style="left:{u(x)};top:{u(y)};width:{u(wd)};height:{u(ht)}">'
+
+
+def _live(child: str, face: str, best: dict[str, int], now: str | None) -> str:
+    """What is true for this child, on the neutral picture: face, name and stars in the banner, the next sound under the button, the nodes lit or ready."""
+    rgb = lambda k: "rgb({},{},{})".format(*PARTS[k])
+    star = PARTS["star"]
+    out = (_part(face, PARTS[face]) +
+           f'<div class="hm-live hm-patch" style="left:{u(424)};top:{u(10)};width:{u(270)};height:{u(56)};background:{rgb("banner_rgb")}"></div>'
+           f'<div class="hm-live hm-who" style="left:{u(428)};top:{u(12)};height:{u(52)}"><span class="nm">{escape(child)}</span><span class="dn">▾</span>'
+           f'<img src="/app/static/home_parts/star.png" alt=""><b>{sum(best.values())}</b></div>'
+           f'<div class="hm-live hm-patch" style="left:{u(96)};top:{u(505)};width:{u(196)};height:{u(27)};background:{rgb("card_rgb")}"></div>'
+           f'<div class="hm-live hm-nexttxt" style="left:{u(70)};top:{u(505)};width:{u(230)};height:{u(27)}">{escape(_next_text(now or next((w for w in ORDER if best[w] < stars.MAX_STARS), None)))}</div>')
+    she = PARTS["nodes"]["she"]
+    for w in ORDER:
+        n = PARTS["nodes"][w]
+        if best[w] >= 1:                                     # lit: the node in yellow, its stars under it
+            out += _part(f"lit_{w}", n["lit"], "lit")
+            sw, gap = 19, 3
+            row = best[w] * sw + (best[w] - 1) * gap
+            sy = n["cy"] + n["r"] + (8 if w == "she" else 31)
+            out += "".join(_part("star", star, "st", sw / star["w"], star["x"], star["y"], n["cx"] - row / 2 + k * (sw + gap), sy) for k in range(best[w]))
+        # A zero-star sound stays grey, including the next unlocked sound.
+    return out
+
+
+def _hotspots(first_time: bool, next_word: str | None, items: str, is_open: dict[str, bool]) -> str:
     out = ""
     for x0, y0, x1, y1, href, label in (HOT_FIRST if first_time else HOT_RETURNING) + TEACHER_AREAS:
         if href == "NEXT":
             href = f"?word={next_word}" if next_word else "?page=map"
+        word = href.split("=", 1)[1] if href.startswith("?word=") else None
+        if word and not is_open[word]:                       # a sound not open yet: no link, a hint instead
+            out += (f'<span class="hm-hot locked" role="img" aria-label="{escape(_locked_hint(word))}" title="{escape(_locked_hint(word))}" '
+                    f'style="left:{u(x0)};top:{u(y0)};width:{u(x1 - x0)};height:{u(y1 - y0)}"></span>')
+            continue
         tab = ' target="_blank" rel="noopener"' if href.startswith("http") else ' target="_self"'
         out += (f'<a class="hm-hot" href="{href}"{tab} aria-label="{escape(label)}" title="{escape(label)}" '
                 f'style="left:{u(x0)};top:{u(y0)};width:{u(x1 - x0)};height:{u(y1 - y0)}"></a>')

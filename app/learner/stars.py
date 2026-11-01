@@ -6,6 +6,7 @@ Stars follow the zones of the result slider (learner/result.py):
 - red = 0 stars, and the child practises again
 The best result a child has had on a word is kept, in their own file under profiles/_progress (a folder, so the profile list never shows it).
 A word is "in progress" after its first try and "done" at 3 stars. Provisional until the content owner confirms the rule.
+The words open in the order of the lessons: one opens when the one before it has at least one star (unlocked, frontier).
 """
 from __future__ import annotations
 
@@ -61,6 +62,23 @@ def forget(child: str) -> None:
 
 def total(child: str | None) -> int:
     return sum(v["best"] for v in load(child).values())
+
+
+def best(progress: dict[str, dict], word: str) -> int:
+    return progress.get(word, {}).get("best", 0)
+
+
+def frontier(progress: dict[str, dict]) -> str | None:
+    """The sound to do now: the first, in the order of the lessons, that has no star yet (None when every sound has at least one)."""
+    from .lessons import ORDER
+    return next((w for w in ORDER if best(progress, w) == 0), None)
+
+
+def unlocked(progress: dict[str, dict], word: str) -> bool:
+    """The sounds open one after the other: a sound opens when the one before it has at least one star (the user's rule, 2026-11-02)."""
+    from .lessons import ORDER
+    i = ORDER.index(word)
+    return i == 0 or best(progress, ORDER[i - 1]) >= 1
 
 
 def status(progress: dict[str, dict], word: str) -> str:

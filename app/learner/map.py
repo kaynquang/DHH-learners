@@ -65,6 +65,7 @@ CSS = f"""
 .mp-trail {{ left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }}
 .mp-isle {{ width: {u(ISLAND_W)}; height: {u(CARD_DY + CARD_H)}; text-decoration: none; color: var(--ink); display: block; }}
 .mp-isle > * {{ position: absolute; }}
+.mp-isle.locked {{ filter: grayscale(.85); opacity: .6; cursor: not-allowed; }} .mp-isle.locked:hover .mp-blob {{ transform: none; }}
 .mp-isle:hover .mp-blob {{ transform: translateY({u(-4)}); }} .mp-isle:focus-visible {{ outline: 3px solid {ACCENT}; outline-offset: 4px; border-radius: 24px; }}
 .mp-blob {{ left: {u(11)}; top: 0; width: {u(190)}; height: {u(118)}; border-radius: 50% 50% 46% 46% / 66% 66% 34% 34%; display: grid; place-items: center; transition: transform .15s; }}
 .mp-blob > div {{ width: {u(64)}; height: {u(64)}; margin-top: {u(8)}; }}
@@ -99,13 +100,15 @@ def _trail() -> str:
     return svg_img(svg, "").replace('style=""', 'class="mp-trail"')
 
 
-def _isle(key: str, href: str, name_html: str, tags_html: str) -> str:
+def _isle(key: str, href: str | None, name_html: str, tags_html: str, hint: str = "") -> str:
+    """An island; href None: not open yet (no link, greyed, the hint says why)."""
     cx, top = POS[key]
     cw = CARD_W.get(key, ISLAND_W)
-    return (f'<a class="mp-isle" href="{href}" target="_self" style="left:{u(cx - ISLAND_W / 2)};top:{u(top)}">'
+    tag, link = ("a", f' href="{href}" target="_self"') if href else ("div", f' title="{escape(hint)}" aria-disabled="true"')
+    return (f'<{tag} class="mp-isle{"" if href else " locked"}"{link} style="left:{u(cx - ISLAND_W / 2)};top:{u(top)}">'
             f'<div class="mp-base"></div><div class="mp-blob" style="background:{COLOR[key]}"><div>{_art(key)}</div></div>'
             f'<div class="mp-card" style="left:{u((ISLAND_W - cw) / 2)};width:{u(cw)}"><div class="mp-name">{name_html}</div>'
-            f'<div class="mp-row">{tags_html}</div></div></a>')
+            f'<div class="mp-row">{tags_html}</div></div></{tag}>')
 
 
 def render() -> None:
@@ -130,17 +133,21 @@ def render() -> None:
         _isle("sound", "?page=sound", 'Sound check <span class="zh">聲音檢查</span>',
               '<span class="mp-tag">optional 可選</span><span>s · ʃ · f only</span>'),
     ]
-    for w in ORDER:
+    open_all = st.query_params.get("open") == "all"
+    for i, w in enumerate(ORDER):
         name = f'<em>{escape(LESSONS[w].label)}</em> {escape(w)} <span class="zh">{escape(MEANING.get(w, ""))}</span>'
         best = progress.get(w, {}).get("best", 0)
         state = stars.status(progress, w)
+        is_open = open_all or stars.unlocked(progress, w)
         tag = {"not started": '<span class="mp-tag">not started 未開始</span>', "in progress": '<span class="mp-tag prog">in progress 進行中</span>',
-               "done": '<span class="mp-tag done">done 完成 ✓</span>'}[state]
-        parts.append(_isle(w, f"?word={w}", name, f'<span class="mp-stars">{"★" * best}{"☆" * (stars.MAX_STARS - best)}</span>{tag}'))
+               "done": '<span class="mp-tag done">done 完成 ✓</span>'}[state] if is_open else '<span class="mp-tag">🔒 locked 未開放</span>'
+        prev = ORDER[i - 1] if i else w
+        parts.append(_isle(w, f"?word={w}" if is_open else None, name, f'<span class="mp-stars">{"★" * best}{"☆" * (stars.MAX_STARS - best)}</span>{tag}',
+                           f"First get a star on {LESSONS[prev].label} {prev} · 先在 {LESSONS[prev].label} {prev} 拿到一顆星"))
     parts.append('<div class="mp-key"><h4>Map key 圖例</h4><div class="mp-tags"><span class="mp-tag">not started 未開始</span>'
                  '<span class="mp-tag prog">in progress 進行中</span><span class="mp-tag done">done 完成 ✓</span></div>'
                  '<div class="mp-note">★ green 3 · yellow 2 or 1 · red 0 (practise again) · 綠3、黃2或1、紅0（再練習）</div>'
-                 '<div class="mp-note">All islands open (free order) — ordering rule to be decided · 順序規則待定</div>'
+                 '<div class="mp-note">🔒 An island opens when the one before it has a star · 前一個小島拿到星星後才會打開</div>'
                  '<div class="mp-note">“cheat” word may need replacing · 例詞可能需更換</div></div>')
     parts.append('<div class="mp-fin">🎉 End-of-lesson celebration &amp; next lesson<span class="zh">課程結束慶祝／下一課</span>— to be added 待補 —</div>')
     st.html(f'<div class="mp-map">{"".join(parts)}</div>')

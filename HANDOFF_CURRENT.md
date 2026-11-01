@@ -1,5 +1,7 @@
 # Bàn giao DHH-learners — trạng thái ngày 2026-10-29
 
+> **Đã lỗi thời. Đọc `HANDOFF_2026-11-02.md` trước.**
+
 ## Đọc trước khi tiếp tục
 
 Bạn là AI tiếp tục dự án đang có trên máy người dùng. Trả lời bằng tiếng Việt, ngắn gọn, làm trực tiếp trong dự án. Đọc file này trước, sau đó đọc mã nguồn liên quan. `HANDOFF.md` là tài liệu nền ngày 2026-10-28; phần nói pea/bee/knee chưa có ảnh trong đó đã lỗi thời. Khi có khác biệt, ưu tiên trạng thái mới ghi ở đây và mã nguồn thực tế.

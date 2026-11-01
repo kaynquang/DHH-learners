@@ -68,10 +68,7 @@ class Lesson:
 
 _ALL = {**C.TARGETS, **C.STOP_TARGETS, **C.NASAL_TARGETS, **C.AFFRICATE_TARGETS}
 # one word per sound, in the order the Dev app lists them
-ORDER = []
-for _w, _p in _ALL.items():
-    if _p not in [_ALL[x] for x in ORDER]:
-        ORDER.append(_w)
+ORDER = ["she", "see", "fee", "pea", "bee", "me", "knee", "cheat"]
 
 # Letters that spell the target sound. "knee" is left out on purpose (its /n/ is spelled with a silent k): to be decided with the content owner.
 HIGHLIGHT = {"see": "s", "she": "sh", "fee": "f", "pea": "p", "bee": "b", "me": "m", "cheat": "ch"}

@@ -17,6 +17,8 @@ from fricative import config as C
 from fricative import vtl
 from fricative.audio import limit_duration, load
 from fricative.calibrated import clean_name, delete_profile, last_profile, list_profiles, load_room, load_voice, remember_profile, save_voice
+
+from . import children
 from fricative.noise import ROOM_NOISY_DBFS, ROOM_QUIET_DBFS, check, noise_floor_db, room_verdict
 
 from . import stars
@@ -121,11 +123,15 @@ def _reset_flow() -> None:
             del st.session_state[k]
 
 
-def _start_draft(name: str) -> None:
+def _start_draft(name: str, gender: str | None = None) -> None:
     """Record this child now. Nothing is written to the list until the last step's Save."""
     _reset_flow()
     st.session_state["sc_draft"] = name
+    st.session_state["sc_draft_gender"] = gender
     st.session_state.pop("sc_confirm", None)
+
+
+GENDER_LABELS = {"boy": "👦 Boy 男生", "girl": "👧 Girl 女生"}          # the face next to the name on the home page
 
 
 def _cancel_draft() -> None:
@@ -145,14 +151,17 @@ def _profile_picker() -> str | None:
                          label_visibility="collapsed", width=260) if names else None)
     with st.popover("＋ Child 新增學生"):
         new = st.text_input("Name 名字", key="sc_newname")
+        gender = st.radio("Boy or girl 男生或女生", list(GENDER_LABELS), format_func=GENDER_LABELS.get, index=None, horizontal=True, key="sc_newgender")
         if st.button("Add and record 新增並錄製", key="sc_add"):
             cleaned = clean_name(new)
             if not cleaned:
                 st.error("Please type a name · 請輸入名字")
             elif _taken(cleaned):
                 st.error(f"“{cleaned}” is already in the list · 這個名字已被使用")
+            elif gender is None:
+                st.error("Please choose boy or girl · 請選擇男生或女生")
             else:
-                _start_draft(cleaned)
+                _start_draft(cleaned, gender)
                 st.rerun()
     return name
 
@@ -279,6 +288,8 @@ def _save(name: str) -> None:
     """The last step: only now is the child written to the list (a re-recorded child replaces the old numbers)."""
     ss = st.session_state
     save_voice(name, ss["sc_tokens"], ss.get("sc_noise"))
+    if ss.get("sc_draft_gender"):                   # a new child; a child recorded again keeps what was chosen before
+        children.set_gender(name, ss["sc_draft_gender"])
     remember_profile(name)
     ss["sc_just_saved"] = name
     ss.pop("sc_profile", None)                  # the picker opens on the child just saved
@@ -307,6 +318,7 @@ def _ready_step(draft: str) -> None:
 def _delete(name: str) -> None:
     delete_profile(name)
     stars.forget(name)
+    children.forget(name)
     if last_profile() is None:                  # the child just deleted was the one in use
         remember_profile(None)
     for k in ("sc_profile", "sc_confirm", "sc_confirm_del", "sc_just_saved"):
@@ -323,6 +335,13 @@ def _delete_controls(name: str) -> None:
         b.button("No, keep 否，保留", key="sc_del_no", width="stretch", on_click=lambda: st.session_state.pop("sc_confirm_del", None))
     else:
         st.button("🗑️ Delete child 刪除學生", key="sc_del_ask", width="stretch", on_click=lambda: st.session_state.update(sc_confirm_del=name))
+
+
+def _gender_control(name: str) -> None:
+    """Boy or girl, for a saved child (the face on the home page); it can be changed at any time."""
+    key = f"sc_gender_{name}"
+    st.segmented_control("Boy or girl 男生或女生", list(GENDER_LABELS), format_func=GENDER_LABELS.get, default=children.gender(name), key=key,
+                         on_change=lambda: children.set_gender(name, st.session_state.get(key)))
 
 
 def _view(name: str | None) -> None:
@@ -346,6 +365,7 @@ def _view(name: str | None) -> None:
     left, right = st.columns([640, 360], gap="large")
     with left:
         _tick_cards(noise, len(tokens))
+        _gender_control(name)
         st.button("▶ Start 開始", key="sc_start", type="primary", width="stretch", on_click=_start_play, args=(name,))
         if st.session_state.get("sc_confirm") == name:
             st.html('<div class="sc-state ok"><span class="f">❓</span><span>Record this child again?'
