@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import escape
 
-import parselmouth
 import streamlit as st
 
 from fricative import config as C
@@ -113,7 +112,7 @@ def from_live(live: dict, phone: str) -> Result:
     q = (0.8 + 0.2 * min(1.0, (held - HELD_GREEN_MS) / HELD_GREEN_MS) if color == "green" else 0.5 + 0.3 * (held - HELD_YELLOW_MS) / (HELD_GREEN_MS - HELD_YELLOW_MS)
          if color == "yellow" else 0.5 * held / HELD_YELLOW_MS)
     sound = "/s/" if phone == "s" else "/ʃ/"
-    message = {"green": f"You held {sound}", "yellow": f"Nearly: hold {sound} a little longer", "red": f"Not yet: keep the dot in the green"}[color]
+    message = {"green": f"You held {sound}", "yellow": f"Nearly: hold {sound} a little longer", "red": "Not yet: keep the dot in the green"}[color]
     tip = f"{hiss / 1000:.1f} s of hiss, {held / 1000:.1f} s in the green" + ("; then the smile" if live.get("win") else "")
     lo, hi = ZONE[color]
     return Result(color, LABELS[color], MARKS[color], message, tip, heard=phone, closeness=min(hi, max(lo, q)))
@@ -135,6 +134,9 @@ CSS = f"""
   box-shadow: inset 0 -4px 0 rgba(0,0,0,.18); }}
 .st-key-again button:hover {{ background: {ACCENT}; color: #fff; filter: brightness(1.08); }}
 .st-key-again button p {{ font-size: 18px; font-weight: 800; }}
+.st-key-win_next button {{ min-height: 56px; border-radius: 999px; background: #2E9B57; color: #fff; border: none; font-size: 18px; font-weight: 800; box-shadow: 0 4px 0 #1F7A41; }}
+.st-key-win_next button:hover {{ background: #2E9B57; color: #fff; filter: brightness(1.08); }}
+.st-key-win_next button p {{ font-size: 18px; font-weight: 800; }}
 """
 
 

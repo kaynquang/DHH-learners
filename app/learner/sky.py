@@ -56,27 +56,51 @@ CSS = f"""
 
 .ln-wordcard {{ background: rgba(240,250,234,.84); border: 1.5px solid #CFE8BD; border-radius: 28px; box-shadow: 0 14px 34px rgba(80,140,70,.12);
   padding: 26px 30px; min-height: 354px; flex-wrap: nowrap; gap: 14px; }}
-.ln-word {{ font-size: 176px; letter-spacing: -5px; line-height: .9; }}
-.ln-word[data-n="3"] {{ font-size: 130px; letter-spacing: -4px; }}
-.ln-word[data-n="4"], .ln-word[data-n="5"] {{ font-size: 104px; letter-spacing: -3px; }}
+.ln-wordcard {{ container-type: inline-size; display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "w w" "a b"; justify-items: center; align-items: start;
+  min-height: 0; padding: 22px 18px; gap: 16px 10px; }}
+.ln-wordcard > .ln-center {{ grid-area: w; flex: none; max-width: 100%; }}
+.ln-wordcard > .ln-fig:first-child {{ grid-area: a; }}
+.ln-wordcard > .ln-fig:last-child {{ grid-area: b; }}
+.ln-word {{ font-size: min(176px, 52cqw); letter-spacing: -4px; line-height: .9; }}
+.ln-word[data-n="3"] {{ font-size: min(130px, 40cqw); letter-spacing: -3px; }}
+.ln-word[data-n="4"], .ln-word[data-n="5"] {{ font-size: min(104px, 30cqw); letter-spacing: -2px; }}
 .ln-word .hl {{ text-decoration-thickness: 9px; text-underline-offset: 14px; }}
-.ln-circle {{ width: 124px; height: 124px; }}
+.ln-circle {{ width: min(124px, 36cqw); height: min(124px, 36cqw); }}
+.ln-circle img {{ width: 78%; height: 78%; }}
+@media (max-width: 1100px) {{
+  .st-key-toprow [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+  .st-key-toprow [data-testid="stColumn"] {{ flex: 1 1 340px; min-width: 340px; }}
+}}
 .ln-circle.empty {{ border: 3px dashed #8F9BB5; background: rgba(255,255,255,.35) !important; }}
+.ln-guest {{ margin: 0 auto 14px; max-width: 760px; padding: 10px 18px; border-radius: 999px; background: #FFF4C9; border: 2px solid #E8B93A; color: #1B2440; font-size: 16px; font-weight: 700; text-align: center; }}
+.ln-guest a {{ color: #2F6FE4; }}
+/* the three cards of the row end at the same line: the columns stretch and each column's first block (the recorder, the word card, the mouth guide) fills it */
+.st-key-toprow > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {{ align-items: stretch; }}
+.st-key-toprow [data-testid="stColumn"] > [data-testid="stVerticalBlock"] {{ height: 100%; }}
+.st-key-toprow [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:first-child {{ flex: 1 1 auto; display: flex; flex-direction: column; }}
+.st-key-toprow [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:first-child > * {{ flex: 1 1 auto; }}
+.st-key-word_solo, .st-key-word_solo > [data-testid="stElementContainer"], .st-key-word_solo [data-testid="stHtml"] {{ display: flex; flex-direction: column; flex: 1 1 auto; }}
+.st-key-word_solo .ln-wordcard {{ flex: 1 1 auto; align-content: center; }}
+.st-key-toprow [data-testid="stElementContainer"][class*="st-key-mic_"], .st-key-toprow [class*="st-key-mic_"] > div {{ flex: 1 1 auto; display: flex; flex-direction: column; }}
+.st-key-toprow [class*="st-key-mic_"] [data-testid="stBidiComponentIsolated"], .st-key-toprow [class*="st-key-mic_"] [data-testid="stBidiComponentIsolated"] > div, .st-key-toprow [class*="st-key-mic_"] [data-testid="stBidiComponentIsolated"] > div > div {{ height: 100%; }}
+.st-key-liverow {{ margin: -4px 0 8px; }}
+.st-key-liverow button {{ padding-left: 14px; padding-right: 14px; }}
+.st-key-toprow [data-testid="stButtonGroup"] {{ flex-wrap: wrap; max-width: 100%; }}
+.st-key-toprow [data-testid="stButtonGroup"] button {{ flex: 1 1 auto; padding-left: 8px; padding-right: 8px; }}
+.ln-win {{ margin: 10px 0; padding: 14px 16px; border-radius: 18px; background: #FFF4C9; border: 2px solid #E8B93A; color: #1B2440; font-size: 18px; text-align: center; animation: ln-pop .5s ease-out; }}
+@keyframes ln-pop {{ 0% {{ transform: scale(.85); opacity: 0; }} 70% {{ transform: scale(1.04); }} 100% {{ transform: scale(1); opacity: 1; }} }}
+@media (prefers-reduced-motion: reduce) {{ .ln-win {{ animation: none; }} }}
 .ln-sound {{ background: #E1ECFF; border-radius: 999px; padding: 7px 20px; margin-top: 14px; }}
 .ln-cap {{ color: #4A5877 !important; }}
 .ln-meaning {{ font-size: 24px; margin-top: 4px; }}
 
-.st-key-toprow [data-testid="stColumn"] > [data-testid="stVerticalBlock"], .st-key-toprow .stElementContainer,
-.st-key-toprow [data-testid="stHtml"], .st-key-toprow .ln-wordcard {{ height: 100%; }}
 .st-key-mouth {{ {CARD} padding: 24px !important; min-height: 354px; box-shadow: 0 14px 34px rgba(70,120,200,.13); border: 1.5px solid rgba(255,255,255,.95) !important; }}
 .ln-checks li {{ background: rgba(255,255,255,.9); border-color: #D8E4F7; border-radius: 18px; }}
 
 [data-baseweb="select"] > div {{ background: rgba(255,255,255,.92) !important; border-color: rgba(255,255,255,.95) !important; border-radius: 999px !important; }}
-.st-key-lipbar {{ {CARD} padding: 22px 30px !important; border: 1.5px solid rgba(255,255,255,.95) !important; }}
+.st-key-lipbar {{ {CARD} padding: 14px 24px !important; gap: 28px; flex-wrap: wrap; border: 1.5px solid rgba(255,255,255,.95) !important; }}
 .st-key-lipbar label p {{ font-size: 18px; }}
 .st-key-lipbar label > div:first-of-type {{ background-color: #C9D4E8 !important; }}
 .st-key-lipbar label:has(input:checked) > div:first-of-type {{ background-color: #2F6FE4 !important; }}
-.st-key-lipbar [data-testid="stCaptionContainer"] {{ padding-left: 54px; }}
-.st-key-lipbar [data-testid="stColumn"]:first-child {{ border-right: 2px dashed #CBD7EC; padding-right: 26px; }}
-.st-key-lipbar [data-testid="stColumn"]:last-child {{ padding-left: 20px; justify-content: center; }}
+.st-key-lipbar [data-testid="stCaptionContainer"] {{ padding-left: 0; font-size: 12px; }}
 """

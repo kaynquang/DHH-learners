@@ -5,7 +5,7 @@ import streamlit as st
 from fricative.audio import limit_duration, load
 from fricative.calibrated import CAL_WORDS, build_calibration, save_profile
 from fricative.noise import check, noise_floor_db
-from fricative.patterns import SCALAR_KEYS, extract
+from fricative.patterns import extract
 from fricative.plots import spectrogram_figure
 from fricative.reference import load_reference
 from fricative.segment import SegmentationError, find_boundaries
@@ -44,7 +44,7 @@ def demo() -> None:
 
 
 done = len(tokens)
-st.progress(done / N, text=f"{done} of {N} recorded")
+st.progress(done / N, text=f"{done} of {N} recorded 已錄 {done} / {N}")
 
 if done == N and st.session_state.get("calibration") is not None:
     cal = st.session_state["calibration"]

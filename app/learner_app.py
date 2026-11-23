@@ -1,18 +1,21 @@
 """The learners' app: one word at a time, built from the design mockup (S mockup pdf.pdf). The Dev tools live in streamlit_app.py.
 
 Run: streamlit run app/learner_app.py --server.port 8502
-Open another word with ?word=she (only "see" has its full content so far), or use the buttons above the word to move between sounds.
+Open another word with ?word=she or use the buttons above the word to move between sounds.
 
 The record panel on the right is replaced by the result once a recording is scored; "Record again" brings the record button back.
 """
+import uuid
+
 import streamlit as st
 from pathlib import Path
 
 from fricative import warmup
 from fricative.audio import load
+from fricative import reclog
 from fricative.noise import log_quality, recording_quality
 from fricative.calibrated import last_profile, load_room, voice_scale
-from learner import camlog, home, lipcam, map as map_screen, result, screen, sky, sound_check, spectro, stars, tongue
+from learner import camlog, home, lipcam, progress as progress_page, result, screen, sky, sound_check, spectro, stars, tongue
 from learner.lessons import LESSONS, ORDER
 from learner.mic import affricate_settings as mic_affricate_settings, fricative_settings as mic_fricative_settings, guide_settings as mic_guide_settings, mic
 from learner.motion import mouth_motion, mouth_steps
@@ -25,6 +28,7 @@ def _ready() -> dict:
 
 
 _ready()                                    # every model is loaded before the first screen is used
+sid = st.session_state.setdefault("sid", uuid.uuid4().hex[:8])     # one id per visit, so the research log can tell visits apart
 
 word = st.query_params.get("word", ORDER[0])
 if word not in LESSONS:
@@ -38,24 +42,36 @@ page = st.query_params.get("page")
 if page == "sound":                                         # ?page=sound: the calibration (Sound Check) instead of a lesson
     sound_check.render()
     st.stop()
-if page == "home" or (page is None and "word" not in st.query_params):     # the app opens on the home page (SeeSound); ?word=she opens a lesson
-    home.render()
+if page == "collect":                                       # ?page=collect: a teacher records a participant (no feedback shown), see learner/collect.py
+    from learner import collect as collect_page
+    collect_page.render()
     st.stop()
-if page == "map":                                                           # the map of the eight sounds
-    map_screen.render()
+if page == "stars":                                         # ?page=stars: the stars of every sound ("My Stars" on the home page)
+    progress_page.render()
+    st.stop()
+if page == "home" or "word" not in st.query_params:     # the app opens on the home page (SeeSound); ?word=she opens a lesson; an old ?page=map lands here too
+    home.render()
     st.stop()
 st.html(screen.top_bar(index, len(ORDER), stars.total(last_profile())))
 
 
 open_all = st.query_params.get("open") == "all"                           # ?open=all: every sound open (for a teacher)
 progress = stars.load(last_profile())
-is_open = {w: open_all or stars.unlocked(progress, w) for w in ORDER}      # a sound opens when the one before it has a star (learner/stars.py)
+guest = last_profile() is None                                            # no child chosen: nothing can be saved or earned, so nothing is locked (and a banner says so)
+is_open = {w: open_all or guest or stars.unlocked(progress, w) for w in ORDER}      # a sound opens when the one before it is passed (learner/stars.py)
+if st.session_state.get("_opened") != word:                               # the research log: one line each time a lesson is opened
+    st.session_state["_opened"] = word
+    reclog.log_event("lesson_open", sid, last_profile(), word=word, unlocked=is_open[word], guest=guest, open_all=open_all, stars=stars.best(progress, word))
+if guest:
+    st.html('<div class="ln-guest">No child chosen: your stars are not saved. <a href="?page=sound" target="_self">Add a child 新增學生</a> '
+            '<span class="zh">尚未選擇學生，星星不會儲存。</span></div>')
 
 
 def go(target: str) -> None:
     """Move to another sound: it opens with the record button, not with an earlier result."""
     for w in (word, target):
         st.session_state.pop(f"mic_{w}_wav", None)
+    st.session_state.pop("celebrate", None)
     st.query_params.clear()
     st.query_params["word"] = target
     if open_all:
@@ -67,7 +83,7 @@ with st.container(key="nav", horizontal=True, vertical_alignment="center"):
     st.button("", key="nav_prev", icon=":material/chevron_left:", disabled=index == 1, on_click=go, args=(ORDER[max(index - 2, 0)],))
     for w in ORDER:                                  # the sounds as a row of buttons; the open one is filled; a sound not open yet cannot be pressed
         st.button(LESSONS[w].label, key=f"nav_{w}", type="primary" if w == word else "secondary", on_click=go, args=(w,), disabled=not is_open[w],
-                  help=None if is_open[w] else f"First get a star on {LESSONS[ORDER[ORDER.index(w) - 1]].label} · 先在前一個聲音拿到一顆星")
+                  help=None if is_open[w] else f"Get 2 stars on {LESSONS[ORDER[ORDER.index(w) - 1]].label} first · 先在前一個聲音拿到兩顆星")
     st.button("", key="nav_next", icon=":material/chevron_right:", disabled=index == len(ORDER) or not is_open[nxt], on_click=go, args=(nxt,))
     st.button("Sound check 聲音檢查", key="nav_sound", icon=":material/tune:", on_click=lambda: st.query_params.update({"page": "sound"}))
 
@@ -76,8 +92,8 @@ if not is_open[word]:                                # opened by its address bef
     prev = ORDER[ORDER.index(word) - 1]
     st.html(f'<div style="max-width:640px;margin:40px auto;background:#FBF3DC;border:3px solid #1B2440;border-radius:24px;padding:28px 30px;text-align:center;color:#1B2440">'
             f'<div style="font-size:30px;font-weight:900">🔒 Not open yet <span style="font-weight:700;color:#3A4664">還沒打開</span></div>'
-            f'<div style="font-size:20px;font-weight:700;margin-top:12px">First get a star on {LESSONS[prev].label} {prev}.<br>'
-            f'<span style="color:#3A4664">先在 {LESSONS[prev].label} {prev} 拿到一顆星。</span></div></div>')
+            f'<div style="font-size:20px;font-weight:700;margin-top:12px">Get 2 stars on {LESSONS[prev].label} {prev} first.<br>'
+            f'<span style="color:#3A4664">先在 {LESSONS[prev].label} {prev} 拿到兩顆星。</span></div></div>')
     _, mid, _ = st.columns([1, 1, 1])
     mid.button(f"Go to {LESSONS[here].label} {here} 前往", key="locked_go", type="primary", width="stretch", on_click=go, args=(here,))
     st.stop()
@@ -108,10 +124,6 @@ def mouth_block() -> None:
 
 def record_block() -> None:
     """The record button; once a recording is scored, the result in its place."""
-    live_label = "Meter 長條" if lesson.phone == "f" else "Dot 圓點"
-    if lesson.phone in LIVE_CHOICES:                         # /s/ /ʃ/ /f/: what the screen shows while the child speaks (to try, and to go back from)
-        choices = LIVE_CHOICES[lesson.phone]
-        live_label = st.segmented_control("Live view 即時顯示", choices, default=choices[0], key=f"live_mode_{lesson.phone if lesson.phone == 'f' else 'ss'}", required=True)
     slot = st.empty()
     if st.session_state.get(store) is None:
         with slot.container():
@@ -133,6 +145,8 @@ def record_block() -> None:
             if problem:
                 if fresh:
                     log_quality(word, quality)
+                    reclog.log_event("attempt", sid, last_profile(), word=word, phone=lesson.phone, scored=False, problem=problem, snr_db=round(quality.snr_db, 1), level_dbfs=round(quality.level_db, 1),
+                                     room_dbfs=st.session_state.get(f"mic_{word}_room"), voice_scale=round(scale, 3), lip_on=lip_on, coach=coach)
                 st.html(sound_check.recording_problem(problem))
             else:
                 live = st.session_state.get(f"mic_{word}_live")                 # a guided practice of a held hiss: the result is made from what the guide found, as the dot and the box show it
@@ -140,39 +154,62 @@ def record_block() -> None:
                 if fresh:
                     log_quality(word, quality, res.color, res.cog_hz, res.heard, res.notice)      # the notice says why nothing was scored
                 earned = stars.stars(res.color, res.closeness)
+                child = last_profile()
+                was_progress = stars.load(child).get(word, {"best": 0, "tries": 0})
+                was = was_progress["best"]
+                crossed = bool(child) and earned is not None and stars.passed_now(was, earned)
+                if fresh:                                                           # the research log: what was scored, how, and what it did to the child's stars
+                    reclog.log_event("attempt", sid, child, word=word, phone=lesson.phone, scored=earned is not None, attempt_no=was_progress["tries"] + 1, color=res.color, closeness=res.closeness,
+                                     stars=earned, best_before=was, passed_now=crossed, cog_hz=res.cog_hz, heard=res.heard, position=res.position, relamp_db=res.relamp_db, notice=res.notice or None,
+                                     snr_db=round(quality.snr_db, 1), level_dbfs=round(quality.level_db, 1), room_dbfs=st.session_state.get(f"mic_{word}_room"), voice_scale=round(scale, 3),
+                                     live=live, live_mode=st.session_state.get(f"live_mode_{lesson.phone if lesson.phone == 'f' else 'ss'}"), lip_on=lip_on, coach=coach, pass_stars=stars.PASS_STARS,
+                                     affricate=getattr(res.affricate, "__dict__", None) or (str(res.affricate) if res.affricate else None))
                 if earned is not None and st.session_state.get("stars_logged") != (word, hash(wav)):    # once per recording
                     st.session_state["stars_logged"] = (word, hash(wav))
+                    st.session_state["celebrate"] = (word, ORDER[index] if index < len(ORDER) else None) if crossed else None      # this try opens the next sound: celebrate under the result
                     if stars.record(last_profile(), word, earned):
                         st.rerun()                                              # the star count at the top changes
                 st.html(result.panel(res, lesson.phone, wav, scale))
-            st.button("Record again 再錄一次", key="again", width="stretch", on_click=lambda: st.session_state.pop(store, None))
+                celebrate = st.session_state.get("celebrate")
+                if celebrate and celebrate[0] == word:
+                    nxt_word = celebrate[1]
+                    if nxt_word:
+                        st.html(f'<div class="ln-win">🎉 <b>New sound open!</b> {LESSONS[nxt_word].label} {nxt_word} <span class="zh">新的聲音打開了！</span></div>')
+                        st.button(f"Go on to {LESSONS[nxt_word].label} {nxt_word} 前往下一個", key="win_next", type="primary", width="stretch", on_click=go, args=(nxt_word,))
+                    else:
+                        st.html('<div class="ln-win">🎉 <b>All sounds done!</b> <span class="zh">全部完成！</span></div>')
+            st.button("Record again 再錄一次", key="again", width="stretch", on_click=lambda: (reclog.log_event("record_again", sid, last_profile(), word=word), st.session_state.pop(store, None), st.session_state.pop("celebrate", None)))
 
 
-with st.container(key="toprow"):                            # every lesson has the same layout: the word and the mouth to watch, then the recorder (and the lip mirror)
-    top_l, top_r = st.columns([640, 513])
-    with top_l:
-        st.html(screen.word_card(lesson))
-    with top_r:
+lip_on = bool(st.session_state.get("lip_on", False)) if lip else False      # the switches are drawn below the mirror, so their values are read from the session first
+coach = lesson.phone in ("m", "n") and lip_on and bool(st.session_state.get("lip_coach", True))
+vowel = coach and bool(st.session_state.get("lip_vowel", True))                                        # "me" = /m/ then /iː/
+
+live_label = "Meter 長條" if lesson.phone == "f" else "Dot 圓點"
+if lesson.phone in LIVE_CHOICES:                             # /s/ /ʃ/ /f/: what the screen shows while the child speaks (to try, and to go back from): a slim line above the row, so the three cards start level
+    choices = LIVE_CHOICES[lesson.phone]
+    with st.container(key="liverow", horizontal=True, horizontal_alignment="right", vertical_alignment="center"):
+        live_label = st.segmented_control("Live view 即時顯示", choices, default=choices[0], key=f"live_mode_{lesson.phone if lesson.phone == 'f' else 'ss'}", required=True)
+
+with st.container(key="toprow"):                            # one row of three cards of the same height: the recorder | the word | the mouth to watch
+    col_rec, col_word, col_mouth = st.columns([1, 1, 1.15])
+    with col_rec:
+        record_block()
+    with col_word:
+        with st.container(key="word_solo"):
+            st.html(screen.word_card(lesson))
+    with col_mouth:
         mouth_block()
-lip_on, coach, vowel = False, False, False
 if lip:
-    with st.container(key="lipbar"):                      # the camera switch with its privacy note, and the coach switches
-        bar_l, bar_r = st.columns([3, 2], gap="large")
-        with bar_l:
-            lip_on = st.toggle("**Lip mirror** 嘴唇鏡子 :gray[(uses the camera 使用相機)]", key="lip_on")
+    with st.container(key="lipbar", horizontal=True, vertical_alignment="center"):      # a slim band under the row: the camera switch, the coach switches, the privacy note
+        st.toggle("**Lip mirror** 嘴唇鏡子 :gray[(uses the camera 使用相機)]", key="lip_on")
+        if lesson.phone in ("m", "n"):
+            st.toggle("**Coach** 教練 :gray[(lips and voice 嘴唇加聲音)]", key="lip_coach", value=True, disabled=not lip_on)
+            st.toggle("**Go on to a smile** 接著微笑", key="lip_vowel", value=True, disabled=not coach)
+        with st.popover("Privacy 隱私"):
             st.caption("The camera picture stays on this device and is not saved; you see a drawing of a mouth, not the picture. Use it only with the "
                        "permission of a parent or the school. 相機畫面只留在這台裝置、不會儲存，畫面上只會看到嘴巴的圖。須經家長或學校同意後使用。 "
                        "While testing, numbers about the lips and the sound (not the picture, not the voice) are saved on this computer. 測試期間，唇與聲音的數據（不含畫面與聲音）會存在這台電腦。")
-        with bar_r:
-            if lesson.phone in ("m", "n"):
-                coach = st.toggle("**Coach** 教練 :gray[(lips and voice 嘴唇加聲音)]", key="lip_coach", value=True, disabled=not lip_on) and lip_on
-                vowel = st.toggle("**Go on to a smile** 接著微笑", key="lip_vowel", value=True, disabled=not coach) and coach      # "me" = /m/ then /iː/
-if lip_on:
-    rec_col, mirror_col = st.columns([513, 640])
-    with mirror_col:
+    if lip_on:                                                # switching it on is the choice to use the camera: the mirror starts at once and scrolls into view (the browser still asks)
         lipcam.lip_mirror(f"lip_{word}_{'vowel' if vowel else 'coach' if coach else 'mirror'}", coach=coach, noise_db=load_room(last_profile()), vowel=vowel, sound=lesson.phone,
-                           log_url=camlog.url(), word=word)
-else:
-    _, rec_col, _ = st.columns([1, 1, 1])
-with rec_col:
-    record_block()
+                          log_url=camlog.url(), word=word, autostart=True)

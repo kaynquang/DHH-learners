@@ -88,11 +88,11 @@ def zh(text: str) -> str:
 
 
 def top_bar(index: int, total: int, stars: int = 0) -> str:
-    """Map button (nothing to go back to yet), star count, and the progress through the words."""
+    """Home button, star count, and the progress through the words."""
     return f"""<div class="ln-top">
 <div class="ln-pills">
-<a class="ln-pill" href="?page=map" target="_self">{svg_img(BACK_SVG, "width:18px;height:18px")}<span>Map {zh('地圖')}</span></a>
-<span class="ln-pill">{svg_img(STAR_SVG, "width:20px;height:20px")}<span>{stars}</span></span>
+<a class="ln-pill" href="?page=home" target="_self">{svg_img(BACK_SVG, "width:18px;height:18px")}<span>Home {zh('首頁')}</span></a>
+<a class="ln-pill" href="?page=stars" target="_self">{svg_img(STAR_SVG, "width:20px;height:20px")}<span>{stars}</span></a>
 </div>
 <div class="ln-progress">
 <div class="ln-bar" role="progressbar" aria-valuenow="{index}" aria-valuemin="0" aria-valuemax="{total}" aria-label="Word {index} of {total}"><div style="width:{100 * index / total:.0f}%"></div></div>
@@ -159,6 +159,3 @@ def mouth_card(lesson: Lesson) -> str:
         picture = _missing("Mouth picture", height="min-height:260px;")
     return f'<div class="ln-mouth">{mouth_title()}{picture}{checks_html(lesson)}</div>'
 
-
-def left_column(lesson: Lesson) -> str:
-    return f'<div class="ln-left">{word_card(lesson)}{mouth_card(lesson)}</div>'

@@ -14,7 +14,7 @@ import numpy as np
 import streamlit as st
 
 from fricative import config as C
-from fricative import vtl
+from fricative import reclog, vtl
 from fricative.audio import limit_duration, load
 from fricative.calibrated import clean_name, delete_profile, last_profile, list_profiles, load_room, load_voice, remember_profile, save_voice
 
@@ -108,9 +108,9 @@ def recording_problem(problem: str) -> str:
 
 
 def leave() -> None:
-    """Back to the map."""
+    """Back to the home page."""
     st.query_params.clear()
-    st.query_params["page"] = "map"
+    st.query_params["page"] = "home"
 
 
 FLOW_KEYS = ("sc_phase", "sc_noise", "sc_tokens", "sc_attempt", "sc_cal")
@@ -188,8 +188,8 @@ def _room_step() -> None:
         if wav is not None:
             slot.empty()
     with left:
-        st.html(f'<div class="sc-h1">Shh... is it quiet?<span class="zh">噓...這裡安靜嗎？</span></div>'
-                f'<div class="sc-p">Stay still and quiet for 3 seconds. <span class="zh">不動不說 3 秒。</span></div>')
+        st.html('<div class="sc-h1">Shh... is it quiet?<span class="zh">噓...這裡安靜嗎？</span></div>'
+                '<div class="sc-p">Stay still and quiet for 3 seconds. <span class="zh">不動不說 3 秒。</span></div>')
         noise = noise_floor_db(load(wav, "recording.wav")) if wav is not None else None
         st.html(_room_bar(noise))
         if noise is not None:
@@ -268,7 +268,7 @@ def _details(takes: list[dict], noise: float | None, voice: dict | None = None) 
                 ("Voice level (dBFS) 音量", [cell(t.get("speech_db")) for t in takes]),
                 ("SNR (dB) 訊噪比", [cell(t.get("snr")) for t in takes]),
                 ("F3 of “aaa” (Hz) 第三共振峰", [cell(t["f3_hz"], "{:.0f}") for t in takes])]
-        head = "<tr><th>Measure</th>" + "".join(f"<th>#{i + 1}</th>" for i in range(len(takes))) + "</tr>"
+        head = "<tr><th>Measure 項目</th>" + "".join(f"<th>#{i + 1}</th>" for i in range(len(takes))) + "</tr>"
         body = "".join(f"<tr><td>{escape(name)}</td>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>" for name, cells in rows)
         st.html(f'<table class="sc-table sc-tbl">{head}{body}</table>'
                 f'<div class="sc-note"><b>Voice size 聲音大小: ×{cell(scale, "{:.2f}")}</b> (F3 {cell(f3, "{:.0f}")} Hz ÷ {vtl.REF_F3_HZ:.0f} Hz adult reference). '
@@ -287,7 +287,9 @@ def _tick_cards(noise: float | None, n_takes: int) -> None:
 def _save(name: str) -> None:
     """The last step: only now is the child written to the list (a re-recorded child replaces the old numbers)."""
     ss = st.session_state
+    before, before_noise = load_voice(name), load_room(name)      # what a re-recording replaces, kept in the Sound Check log
     save_voice(name, ss["sc_tokens"], ss.get("sc_noise"))
+    reclog.log_soundcheck(name, "re-recorded" if before else "saved", load_voice(name), ss.get("sc_noise"), before, before_noise)
     if ss.get("sc_draft_gender"):                   # a new child; a child recorded again keeps what was chosen before
         children.set_gender(name, ss["sc_draft_gender"])
     remember_profile(name)
@@ -316,6 +318,7 @@ def _ready_step(draft: str) -> None:
         _details(takes, noise)
 
 def _delete(name: str) -> None:
+    reclog.log_soundcheck(name, "deleted", None, None, load_voice(name), load_room(name))
     delete_profile(name)
     stars.forget(name)
     children.forget(name)
@@ -384,7 +387,7 @@ def render() -> None:
     draft = st.session_state.get("sc_draft")
     selected = None
     with st.container(key="sc_top", horizontal=True, vertical_alignment="center"):
-        st.button("← Map 地圖", key="sc_back", on_click=leave)
+        st.button("← Home 首頁", key="sc_back", on_click=leave)
         if draft:
             st.html(f'<div class="sc-chip">Recording 錄製中: <b>{escape(draft)}</b></div>')
             st.button("Cancel 取消", key="sc_cancel", on_click=_cancel_draft)

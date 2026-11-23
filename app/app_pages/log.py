@@ -9,6 +9,31 @@ st.title("Log")
 st.caption(f"Every recording that gets a result is saved here with what the app measured and decided. Flag the ones you said correctly "
            f"that the app judged wrong, then use them to find out why. Files are in `{reclog.LOG_DIR}`.")
 
+checks = reclog.soundcheck_events()
+with st.expander(f"Sound Check log 聲音檢查紀錄 ({len(checks)})", icon=":material/tune:"):
+    st.caption("Each time a child's Sound Check is saved, recorded again or deleted: the new numbers and the ones they replaced (numbers only, no audio). "
+               f"File: `{reclog.LOG_DIR / 'soundcheck.jsonl'}`.")
+    if checks:
+        st.dataframe(pd.DataFrame([{
+            "Time": c["time"].replace("T", " "), "Child": c["child"], "Event": c["event"],
+            "F3 now (Hz)": (c.get("now") or {}).get("f3_hz"), "F3 before (Hz)": (c.get("before") or {}).get("f3_hz"),
+            "Scale now": (c.get("now") or {}).get("scale"), "Scale before": (c.get("before") or {}).get("scale"),
+            "Room now (dBFS)": (c.get("now") or {}).get("room_dbfs"), "Room before (dBFS)": (c.get("before") or {}).get("room_dbfs"),
+        } for c in checks]), hide_index=True, width="stretch", alt="Table of Sound Check events")
+    else:
+        st.write("Nothing yet.")
+
+ev = reclog.events()
+with st.expander(f"Learner events 孩子端事件 ({len(ev)})", icon=":material/database:"):
+    st.caption("Everything a child does in the learner app, one line each: lesson opened, attempt (what was scored, the stars, the pass line, the recording quality, the live guide's numbers), "
+               f"record again. Numbers and choices only, never audio or camera pictures. File: `{reclog.LOG_DIR / 'events.jsonl'}`. Read it together with the Sound Check log and the Camera log.")
+    if ev:
+        flat = pd.json_normalize(ev, sep=".")
+        st.dataframe(flat.iloc[::-1], hide_index=True, width="stretch", alt="Table of learner events")
+        st.download_button("Download events as CSV", flat.to_csv(index=False).encode("utf-8"), file_name="learner_events.csv", mime="text/csv", icon=":material/download:", key="ev_csv")
+    else:
+        st.write("Nothing yet.")
+
 entries = reclog.list_entries()
 if not entries:
     st.info("Nothing logged yet. Record a word on the Practice page.", icon=":material/history:")

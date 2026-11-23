@@ -8,7 +8,6 @@ the voice size, and the numbers behind the verdict. Nothing is stored.
 import pandas as pd
 import streamlit as st
 
-from fricative import config as C
 from fricative import gop, phoneme_check, vtl
 from fricative.audio import limit_duration, load
 from fricative.calibrated import load_voice, voice_scale

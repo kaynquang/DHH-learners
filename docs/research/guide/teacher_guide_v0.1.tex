@@ -1,0 +1,100 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{fontspec}\usepackage{xeCJK}
+\setCJKmainfont{Songti TC}\setCJKsansfont{PingFang TC}
+\usepackage{graphicx,enumitem,xcolor,booktabs,tabularx,array,fancyhdr,titlesec,float}
+\setlist{nosep,leftmargin=1.3em}
+\definecolor{red}{RGB}{210,30,30}
+\newcommand{\num}[1]{\textcolor{red}{\textbf{(#1)}}}
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\pagestyle{fancy}\fancyhf{}\fancyfoot[C]{\small SeeSound recording guide for teachers \thepage}\renewcommand{\headrulewidth}{0pt}
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+\newcommand{\fig}[2]{\begin{center}\includegraphics[width=#2\linewidth]{figs/#1}\end{center}}
+\begin{document}
+\begin{center}{\LARGE\bfseries SeeSound: recording guide for teachers}\\[2pt]{\large 老師錄音操作指南}\\[2pt]Pilot study: one participant, eight words, about 10 minutes\end{center}
+
+\section{What you will do, and why}
+You will record a participant saying eight English words (\textit{she, see, fee, pea, bee, me, knee, cheat}), twice each. Later, you or a colleague will listen to the recordings and rate the first sound of each word. The researchers then compare your ratings with what the program decided. \textbf{The aim is to find out whether the program's judgements agree with teachers' ears.} The program shows the participant no score, so that nobody is influenced.
+
+\textbf{Your role has two separate parts:} (A) \emph{recording}, with the participant, and (B) \emph{rating}, alone, later, without seeing the program's verdict. Please do not do both for the same participant if you can avoid it.
+
+\section{Before you start}
+\begin{itemize}
+\item Consent is signed (the form is separate from the data) and you know the participant's \textbf{code} (for example S01). 已取得簽名同意書。
+\item A quiet room, the participant seated, the microphone 10--15\,cm from the mouth. Same computer and microphone for the whole session.
+\item The data keeper (Kiet) has started the program on this computer. If it says the \emph{phone recogniser model} is missing, tell Kiet before you start.
+\item Open \textbf{http://localhost:8502/?page=collect} in Chrome. (It works only on the computer where the program runs: the microphone is blocked on other addresses.)
+\end{itemize}
+
+\section{Step 1. The form (what to enter, and why)}
+\fig{s1_setup.png}{0.62}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule \textbf{Field} & \textbf{What to enter} & \textbf{Why we ask}\\ \midrule
+\num{1} Participant code 代碼 & A short code that is not a name, the same as on the consent form (S01, S02\ldots). & Data and name are kept apart; the signed form is the only link. A code already used is refused so two people are never mixed.\\
+\num{2} Your initials & Two or three letters. & Shows who confirmed the consent.\\
+\num{3} Age group & Choose one. & Children's voices differ from adults'; the program's limits were set on one adult.\\
+\num{4} Microphone & Choose one. & Different microphones give different noise and loudness.\\
+\num{5} Room & Your judgement: quiet / some noise / noisy. & To explain refused or poor recordings later.\\
+Hearing, first language & Optional (leave blank if unknown or the family prefers not to say). & To compare groups and typical substitutions; never required.\\
+\num{6} Consent confirmed & Tick only if the signed consent is on file. & Required to start.\\
+\num{7} Audio may be kept & Tick only if the consent form's third box was ticked. & Without it nothing is stored that teachers can listen to, so no rating is possible.\\
+\bottomrule\end{tabularx}
+
+\fig{s2_start.png}{0.5}
+Press \textbf{Start 開始} \num{1}. The form never asks for a name, date of birth, address or school.
+
+\section{Step 2. Recording}
+\fig{s3_record.png}{0.52}
+The screen shows one word with a picture. The participant (or you) presses the \textbf{blue microphone button} \num{1}, says the word \textbf{once}, and waits. The button turns red while it records (about 3 seconds). The next word comes by itself, with ``Saved ✓ 已儲存'' on top. There are 16 recordings; the order is different for each participant.
+
+\textbf{What if\ldots}
+\begin{itemize}
+\item \textbf{The program says the recording was too quiet, too loud or too noisy} (next page): press \textbf{Try again}. This check is about sound quality only.
+\item \textbf{A cough, a noise, or the wrong word:} press \textbf{Undo the last recording} \num{1} on the recording page, then say the word again.
+\item \textbf{The page was closed or reloaded:} open the same address again with \texttt{\&p=S01} at the end, or choose the participant in ``Or continue a participant''.
+\item \textbf{Three refused recordings in a row:} a \textbf{Skip this word} button appears; use it so the participant is not stuck (the skip is reported).
+\end{itemize}
+\fig{s4_saved.png}{0.45}
+\fig{s5_refused.png}{0.62}
+
+\section{Step 3. Finishing}
+\fig{s6_done.png}{0.6}
+When ``All done'' appears, press \textbf{Download} \num{1} to keep a zip of this participant's data and send it as agreed to Kiet (do not use e-mail or chat for the zip; use the agreed storage). Then \textbf{Next participant} \num{2}. If you notice a mistake in the last recording, \textbf{Undo} is still there.
+
+\section{Script: what to say}
+\textbf{Before (to the participant, in simple words):} ``We are testing a program that helps children say English sounds. I will show you words on the screen. Press the blue button, say the word once, and wait. There is no right or wrong today, and you can stop whenever you like.'' 我們在測試一個幫助練習英語發音的程式。按藍色按鈕，念一次，然後等一下。今天沒有對或錯，想停隨時可以停。
+
+\textbf{During:}
+\begin{itemize}
+\item Show the screen so the participant sees the word and the picture. For a child who cannot read, point to the picture.
+\item \textbf{Do not say the word aloud before the participant does, and do not correct or praise how it was said.} Neutral phrases only: ``Next one'', ``Thank you''. \emph{(For DHH participants who cannot hear a model, the research team must decide in advance whether a spoken or signed model is allowed; ask before the first DHH session.)}
+\item If the participant asks ``Was it right?'': ``I will tell you later; now just the next word.''
+\item If the participant does not know a word: point to the picture once; if still unknown, press \textbf{Skip this word} only after three refused tries, or ask the team how to mark an unknown word.
+\item Stop at any sign of tiredness or distress (press \textbf{Stop this participant}); partial data stay and can be continued.
+\end{itemize}
+\textbf{After:} ``Thank you, you did very well'' (praise for taking part, not for pronunciation).
+
+\textbf{When to record again:} only for a technical reason (the program refuses it, or a cough or noise). \textbf{Never repeat a word because it was not said well}: this would keep only the good recordings and spoil the comparison.
+
+\section{Part B. Rating (alone, later)}
+Open the Dev program (\textbf{http://localhost:8501}, tab \textbf{Rate}). You will \emph{not} see what the program decided.
+\fig{s7_rate.png}{0.62}
+\begin{enumerate}
+\item[\num{1}] Type your rater code (your initials).
+\item[\num{6}] By default you rate the first recording of each word only (half the work). Keep it on for the pilot.
+\item[\num{2}] Listen as often as you like. You see only the target word.
+\item[\num{3}--\num{5}] Rate \textbf{only the first consonant}: \textbf{Correct} (it sounds right for this word), \textbf{Almost} (close but not quite), \textbf{Not yet} (a different sound or clearly not right). Tick ``I am not sure'' if you cannot decide; a short note is optional.
+\end{enumerate}
+The order is random and you may stop and continue later. Two raters rate every recording; do not discuss ratings until both are done. The comparison with the program is made afterwards by the data keeper.
+
+\section{Quick help}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}X}
+\toprule \textbf{Problem} & \textbf{What to do}\\ \midrule
+The page does not load & Ask Kiet to start the program; check you use \texttt{localhost}, not another address.\\
+The microphone is blocked & Click the lock icon in Chrome's address bar and allow the microphone; reload the page.\\
+``Code already used'' & Choose a new code; or continue that participant if it is the same person.\\
+Warning about the recogniser model & Tell Kiet; five words will be recorded but not scored by the program.\\
+You pressed Start with a wrong code & Press \textbf{Stop this participant}, tell Kiet; the data keeper can delete the participant.\\
+\bottomrule\end{tabularx}
+\vfill {\footnotesize Version 0.1. The words and the participant's code are all the program shows; it keeps audio only if the consent form's third box was ticked.}
+\end{document}

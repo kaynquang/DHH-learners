@@ -13,3 +13,14 @@ app/profiles/
 
 # previews made by the picture scripts in app/learner/assets/mockups
 app/learner/assets/mockups/preview_*.png
+
+# server logs of start_apps.sh
+.run/
+
+# knowledge graph built by graphify (local, regenerate with: graphify update .)
+graphify-out/
+
+# hosting secrets and data
+deploy/.env
+data/
+model/

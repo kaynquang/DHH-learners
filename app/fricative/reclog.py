@@ -90,3 +90,68 @@ def delete(eid: str) -> None:
     if entry is not None:
         audio_path(entry).unlink(missing_ok=True)
     (_entries() / f"{eid}.json").unlink(missing_ok=True)
+
+
+def log_soundcheck(child: str, event: str, voice: dict | None, noise_db: float | None, previous: dict | None = None, previous_noise_db: float | None = None) -> None:
+    """One line per Sound Check event in logs/soundcheck.jsonl, append-only: "saved" (a new child), "re-recorded" (the new numbers and the ones they replace)
+    or "deleted" (the numbers that were removed). Numbers only (F3, level, SNR, room noise, voice scale): no audio of the child is kept."""
+    def pack(v, noise):
+        return None if not v else {"f3_hz": v.get("f3_hz"), "scale": v.get("scale"), "room_dbfs": noise, "takes": v.get("takes")}
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    line = {"time": datetime.now().isoformat(timespec="seconds"), "child": child, "event": event,
+            "now": pack(voice, noise_db), "before": pack(previous, previous_noise_db)}
+    with (LOG_DIR / "soundcheck.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(line, ensure_ascii=False, default=str) + "\n")
+
+
+def soundcheck_events() -> list[dict]:
+    """The Sound Check log, newest first."""
+    try:
+        lines = (LOG_DIR / "soundcheck.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    out = []
+    for ln in lines:
+        try:
+            out.append(json.loads(ln))
+        except ValueError:
+            pass
+    return out[::-1]
+
+
+_VERSION: list[str] = []
+
+
+def app_version() -> str:
+    """The commit the app runs from (for the research log: which rules produced these numbers); "" when git is not there."""
+    if not _VERSION:
+        import subprocess
+        try:
+            _VERSION.append(subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).resolve().parent, capture_output=True, text=True, timeout=3).stdout.strip())
+        except (OSError, subprocess.SubprocessError):
+            _VERSION.append("")
+    return _VERSION[0]
+
+
+def log_event(kind: str, session: str, child: str | None, **fields) -> None:
+    """One line per thing a child does in the learner app, in logs/events.jsonl (append-only, numbers and choices only, never audio or camera pictures):
+    "lesson_open", "attempt" (what was scored and why, the stars, the pass line), "record_again". Read together with soundcheck.jsonl and camera.jsonl."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    line = {"time": datetime.now().isoformat(timespec="seconds"), "session": session, "child": child, "kind": kind, "version": app_version(), **fields}
+    with (LOG_DIR / "events.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(line, ensure_ascii=False, default=str) + "\n")
+
+
+def events() -> list[dict]:
+    """The learner events, oldest first."""
+    try:
+        lines = (LOG_DIR / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    out = []
+    for ln in lines:
+        try:
+            out.append(json.loads(ln))
+        except ValueError:
+            pass
+    return out

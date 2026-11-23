@@ -34,6 +34,8 @@ python3 -m venv .venv
 
 Open http://localhost:8501. Browsers only allow the microphone on HTTPS or `localhost`.
 
+To start both apps at once (learner app on 8502, Dev app on 8501): `./start_apps.sh` on macOS/Linux (`--only learner|dev`, `--test`, `--no-browser`, `--stop`), `.\start_apps.ps1` on Windows.
+
 ### Optional: the phone recogniser
 
 ```bash

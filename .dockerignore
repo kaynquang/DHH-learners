@@ -1,0 +1,12 @@
+.venv
+.git
+graphify-out
+overleaf_paper
+papers
+docs
+explore
+MDPI_template_ACS
+app/assets/model/w2v_phone
+app/logs
+app/profiles
+**/__pycache__

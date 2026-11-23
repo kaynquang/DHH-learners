@@ -42,7 +42,7 @@ export default function (component) {
       rec.start();
       const t0 = performance.now(), ms = data.seconds * 1000;
       const tick = setInterval(() => {
-        note.textContent = "Recording… " + Math.max(0, (ms - (performance.now() - t0)) / 1000).toFixed(1) + " s";
+        note.textContent = "Recording 錄音中… " + Math.max(0, (ms - (performance.now() - t0)) / 1000).toFixed(1) + " s";
       }, 100);
       stopBtn.hidden = false;
       await new Promise((r) => { stopNow = r; setTimeout(r, ms); });
@@ -50,14 +50,14 @@ export default function (component) {
       rec.stop(); clearInterval(tick);
       await stopped;
       stream.getTracks().forEach((t) => t.stop());
-      note.textContent = "Processing…";
+      note.textContent = "Processing 處理中…";
       const ctx = new AudioContext();
       const audio = await ctx.decodeAudioData(await new Blob(chunks).arrayBuffer());
       ctx.close();
       setTriggerValue("wav", toWav(audio));
-      note.textContent = "Done. Press to record again.";
+      note.textContent = "Done. Press to record again. 完成，按下可重新錄音。";
     } catch (err) {
-      note.textContent = "Could not use the microphone: " + (err && err.message ? err.message : err);
+      note.textContent = "Could not use the microphone 無法使用麥克風: " + (err && err.message ? err.message : err);
     }
     busy = false; btn.disabled = false;
   };
@@ -65,7 +65,7 @@ export default function (component) {
 """
 
 _HTML = """
-<div class="rec"><button type="button">● Record</button> <button type="button" class="stop" hidden>■ Stop</button> <span class="note"></span></div>
+<div class="rec"><button type="button">● Record 錄音</button> <button type="button" class="stop" hidden>■ Stop 停止</button> <span class="note"></span></div>
 """
 
 _CSS = """

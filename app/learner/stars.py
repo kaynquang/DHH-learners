@@ -6,7 +6,7 @@ Stars follow the zones of the result slider (learner/result.py):
 - red = 0 stars, and the child practises again
 The best result a child has had on a word is kept, in their own file under profiles/_progress (a folder, so the profile list never shows it).
 A word is "in progress" after its first try and "done" at 3 stars. Provisional until the content owner confirms the rule.
-The words open in the order of the lessons: one opens when the one before it has at least one star (unlocked, frontier).
+The words open in the order of the lessons: one opens when the one before it has PASS_STARS stars (unlocked, frontier). Provisional, like the rest.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from fricative.calibrated import PROFILES_DIR, clean_name
 
 YELLOW_SPLIT = 0.65          # the middle of the yellow zone (0.5 to 0.8)
 MAX_STARS = 3
+PASS_STARS = 2           # the stars that pass a word and open the next one (was 1 until 2026-11-02; a guess, to be confirmed)
 
 
 def stars(color: str | None, closeness: float | None) -> int | None:
@@ -69,16 +70,21 @@ def best(progress: dict[str, dict], word: str) -> int:
 
 
 def frontier(progress: dict[str, dict]) -> str | None:
-    """The sound to do now: the first, in the order of the lessons, that has no star yet (None when every sound has at least one)."""
+    """The sound to do now: the first, in the order of the lessons, not passed yet (None when every sound is passed)."""
     from .lessons import ORDER
-    return next((w for w in ORDER if best(progress, w) == 0), None)
+    return next((w for w in ORDER if best(progress, w) < PASS_STARS), None)
 
 
 def unlocked(progress: dict[str, dict], word: str) -> bool:
-    """The sounds open one after the other: a sound opens when the one before it has at least one star (the user's rule, 2026-11-02)."""
+    """The sounds open one after the other: a sound opens when the one before it is passed (PASS_STARS)."""
     from .lessons import ORDER
     i = ORDER.index(word)
-    return i == 0 or best(progress, ORDER[i - 1]) >= 1
+    return i == 0 or best(progress, ORDER[i - 1]) >= PASS_STARS
+
+
+def passed_now(before: int, earned: int) -> bool:
+    """True when a try takes a word across the pass line (this is the moment of the celebration)."""
+    return before < PASS_STARS <= earned
 
 
 def status(progress: dict[str, dict], word: str) -> str:

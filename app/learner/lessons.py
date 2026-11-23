@@ -67,7 +67,7 @@ class Lesson:
 
 
 _ALL = {**C.TARGETS, **C.STOP_TARGETS, **C.NASAL_TARGETS, **C.AFFRICATE_TARGETS}
-# one word per sound, in the order the Dev app lists them
+# one word per sound, in the order the learner meets them (she first; each opens when the one before it is passed)
 ORDER = ["she", "see", "fee", "pea", "bee", "me", "knee", "cheat"]
 
 # Letters that spell the target sound. "knee" is left out on purpose (its /n/ is spelled with a silent k): to be decided with the content owner.

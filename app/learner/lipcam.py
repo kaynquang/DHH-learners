@@ -419,6 +419,7 @@ export default function (component) {
     raf = requestAnimationFrame(tick);
   };
   btn.onclick = start;
+  if (data.autostart) { start(); box.scrollIntoView({ behavior: "smooth", block: "center" }); }                                   // the page switched the mirror on: that was the choice, no second button
   both.onclick = async () => {                                  // one press: the mirror turn and the recording begin together
     if (!running) await start(); else resetTurn();
     together = true;
@@ -433,9 +434,9 @@ export default function (component) {
 _component = components.component("lip_mirror", html=_HTML, css=_CSS, js=_JS)
 
 
-def lip_mirror(key: str, coach: bool = False, noise_db: float | None = None, vowel: bool = False, sound: str = "m", log_url: str | None = None, word: str = "") -> None:
+def lip_mirror(key: str, coach: bool = False, noise_db: float | None = None, vowel: bool = False, sound: str = "m", log_url: str | None = None, word: str = "", autostart: bool = False) -> None:
     """The lip mirror. It asks for the camera (and, as a coach, the microphone) only when its own button is pressed; the browser asks the person once more.
     noise_db: the room noise from Sound Check, for the sound gate."""
     _component(key=key, data={"closedBelow": CLOSED_BELOW, "coach": coach, "holdS": HOLD_S, "lowShare": LOW_SHARE, "quietDb": QUIET_DBFS,
                               "aboveNoiseDb": ABOVE_NOISE_DB, "noiseDb": noise_db, "vowel": vowel, "sound": sound, "ghost": GHOSTS.get(sound, CH_GHOST), "ghostStepS": CH_GHOST_STEP_S, "openMax": N_OPEN_MAX, "periodic": PERIODIC, "armQuietS": ARM_QUIET_S, "measureS": MEASURE_S, "roomMaxDb": ROOM_MAX_DBFS, "logUrl": log_url, "word": word, "gateMaxDb": GATE_MAX_DBFS,
-                              "mHoldS": M_HOLD_S, "pbCloseS": PB_CLOSE_S, "pbHoldS": PB_HOLD_S, "smileRatio": SMILE_RATIO, "smileGapMax": SMILE_GAP_MAX})
+                              "mHoldS": M_HOLD_S, "pbCloseS": PB_CLOSE_S, "pbHoldS": PB_HOLD_S, "smileRatio": SMILE_RATIO, "smileGapMax": SMILE_GAP_MAX, "autostart": autostart})

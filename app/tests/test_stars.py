@@ -31,13 +31,20 @@ def test_sounds_open_one_after_the_other():
     none = {}
     assert stars.unlocked(none, ORDER[0]) and not any(stars.unlocked(none, w) for w in ORDER[1:])
     assert stars.frontier(none) == ORDER[0]
-    one = {ORDER[0]: {"best": 1, "tries": 1}}                     # one star opens the next sound, even if it is not 3
-    assert stars.unlocked(one, ORDER[1]) and not stars.unlocked(one, ORDER[2])
-    assert stars.frontier(one) == ORDER[1]
+    one = {ORDER[0]: {"best": 1, "tries": 1}}                     # one star is not enough: the pass line is PASS_STARS (2)
+    assert not stars.unlocked(one, ORDER[1]) and stars.frontier(one) == ORDER[0]
+    two = {ORDER[0]: {"best": 2, "tries": 1}}                     # two stars open the next sound, even if it is not 3
+    assert stars.unlocked(two, ORDER[1]) and not stars.unlocked(two, ORDER[2])
+    assert stars.frontier(two) == ORDER[1]
     red = {ORDER[0]: {"best": 0, "tries": 4}}                     # tried, no star yet: still closed
     assert not stars.unlocked(red, ORDER[1]) and stars.frontier(red) == ORDER[0]
-    every = {w: {"best": 1, "tries": 1} for w in ORDER}
+    every = {w: {"best": 2, "tries": 1} for w in ORDER}
     assert all(stars.unlocked(every, w) for w in ORDER) and stars.frontier(every) is None
+
+
+def test_the_pass_line_is_crossed_once():
+    assert stars.passed_now(0, 2) and stars.passed_now(1, 3) and stars.passed_now(1, 2)
+    assert not stars.passed_now(2, 3) and not stars.passed_now(0, 1) and not stars.passed_now(3, 3)
 
 
 def test_boy_or_girl_is_kept(tmp_path, monkeypatch):

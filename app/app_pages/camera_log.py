@@ -7,7 +7,6 @@ import json
 from datetime import datetime
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
@@ -47,7 +46,7 @@ table = pd.DataFrame([{"#": t["n"], "time": clock(t["t0"]), "source": {"mirror":
                        "together": "yes" if t["together"] else ("" if t["together"] is None else "no")} for t in turns])
 st.download_button("Download camera.jsonl", PATH.read_bytes(), file_name="camera.jsonl", mime="application/jsonl")
 event = st.dataframe(table.iloc[::-1], hide_index=True, width="stretch", on_select="rerun", selection_mode="single-row", height=260, key="cl_table")
-st.caption(f"{len(turns)} turns, newest first. Pick one to see it.")
+st.caption(f"{len(turns)} turns, newest first. Pick one to see it.  \n共 {len(turns)} 個回合，最新的在前。請選一個查看。")
 
 rows = event.selection.rows if event and event.selection else []
 pair_overlap = lambda a, b: max(0, min(a["t1"], b["t1"]) - max(a["t0"], b["t0"])) if a["src"] != b["src"] else 0
@@ -64,7 +63,7 @@ def fine_view(t: dict) -> None:
     x = np.array([(r["t"] - f[0]["t"]) / 1000 for r in f])
     db = np.array([r["db"] for r in f])
     bands = np.array([r["bands"] for r in f], dtype=float).T            # 8 x frames
-    st.subheader(f"Turn {t['n']} ({clock(t['t0'])}), the word “{t['word']}”, {len(f)} frames")
+    st.subheader(f"Turn 回合 {t['n']} ({clock(t['t0'])}), the word 單字 “{t['word']}”, {len(f)} frames 影格")
     floor = float(np.percentile(db[db > -100], 10)) if (db > -100).any() else -100.0
     on = np.argmax(db > floor + 12) if (db > floor + 12).any() else None
     m = {"room (10th percentile, dB)": round(floor, 1)}
@@ -109,7 +108,7 @@ else:
 mic = mics[0] if mics else None
 others = ", ".join(f"{'recorder' if other_src == 'mic' else 'mirror'} turn {t['n']}" for t in partners)
 
-st.subheader(f"Turn {chosen['n']} ({clock(chosen['t0'])})" + (f" with {others}" if partners else " (nothing from the other side at this time)"))
+st.subheader(f"Turn 回合 {chosen['n']} ({clock(chosen['t0'])})" + (f" with {others}" if partners else " (nothing from the other side at this time)"))
 t_zero = min(t["t0"] for t in ([mirror] if mirror else []) + mics)
 sec = lambda f, key: [(x["t"] - t_zero) / 1000 for x in f if x.get(key) is not None]
 col = lambda f, key: [x[key] for x in f if x.get(key) is not None]

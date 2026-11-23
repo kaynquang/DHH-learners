@@ -4,11 +4,12 @@ back where they are true for this child: their face (boy or girl, learner/childr
 its stars under it; the sound to do now in light blue with the START ribbon (on /sh/ the bot's own START node); "Next: ..." under the button. Sounds open one after the
 other (learner/stars.py: unlocked): a sound not open yet has no link, only a hint. Invisible tap areas lie on the buttons and on the open nodes.
 On a narrow screen (a phone) the picture does not fit: the page drawn below with code is shown instead (same states).
-The mockup's "3 days" chip is covered: nothing counts days yet. "My Stars" opens the map. "Teachers" opens the Dev app (port 8501 of this computer). ?open=all opens every sound.
+The mockup's "3 days" chip is covered: nothing counts days yet. "My Stars" and the star count open the stars page (learner/progress.py). "Teachers" opens the Dev app (port 8501 of this computer). ?open=all opens every sound.
 """
 from __future__ import annotations
 
 import base64
+import os
 import json
 import hashlib
 from functools import lru_cache
@@ -26,7 +27,7 @@ from .pictures import ART, MEANING
 from .screen import svg_img
 
 MASCOT_PNG = Path(__file__).resolve().parent / "assets" / "mascot_wave.png"      # the blue mascot as the image bot drew it, cut out of its home mockup (home_v2_path.png)
-TEACHER_URL = "http://localhost:8501"          # the Dev app, run beside this one by start_apps.ps1
+TEACHER_URL = os.environ.get("SEESOUND_ADMIN_URL", "http://localhost:8501")          # the Dev app: beside this one on a laptop (start_apps), or https://admin.seesound.org when hosted
 _INK = "#1B2440"
 W, H = 1024, 572                                # the mockup's pixels: the stage is drawn on this grid and scaled
 
@@ -66,9 +67,9 @@ EYE = _svg(f'<path d="M 8 56 C 28 28, 72 28, 92 56 C 72 84, 28 84, 8 56 Z" fill=
            f'<path d="M 28 30 L 22 18 M 50 24 L 50 10 M 72 30 L 78 18" fill="none" {S} stroke-width="5"/>')
 AVATAR = _svg(f'<circle cx="50" cy="50" r="48" fill="#BFE3AE"/><circle cx="50" cy="54" r="26" fill="#FFD9B8" {S} stroke-width="4"/><path d="M 24 50 C 22 24, 78 20, 76 50 C 66 38, 40 36, 24 50 Z" fill="#7A4A2B" {S} stroke-width="4"/>'
               f'<circle cx="41" cy="56" r="3" fill="{_INK}"/><circle cx="59" cy="56" r="3" fill="{_INK}"/><path d="M 40 66 C 46 72 54 72 60 66" fill="none" {S} stroke-width="3.5"/>')
-ADD = _svg(f'<circle cx="50" cy="50" r="44" fill="#fff" stroke="#fff" stroke-width="2"/><circle cx="50" cy="50" r="40" fill="none" stroke="#8CA2C8" stroke-width="5" stroke-dasharray="8 8"/><path d="M 50 32 L 50 68 M 32 50 L 68 50" stroke="#2F6FE4" stroke-width="8" stroke-linecap="round"/>')
+ADD = _svg('<circle cx="50" cy="50" r="44" fill="#fff" stroke="#fff" stroke-width="2"/><circle cx="50" cy="50" r="40" fill="none" stroke="#8CA2C8" stroke-width="5" stroke-dasharray="8 8"/><path d="M 50 32 L 50 68 M 32 50 L 68 50" stroke="#2F6FE4" stroke-width="8" stroke-linecap="round"/>')
 STAR = _svg(f'<polygon points="50,8 62,36 92,38 69,58 77,88 50,72 23,88 31,58 8,38 38,36" fill="#FFC800" {S} stroke-width="6"/>')
-GEAR = _svg(f'<circle cx="50" cy="50" r="22" fill="none" stroke="#fff" stroke-width="7"/><circle cx="50" cy="50" r="8" fill="none" stroke="#fff" stroke-width="6"/>'
+GEAR = _svg('<circle cx="50" cy="50" r="22" fill="none" stroke="#fff" stroke-width="7"/><circle cx="50" cy="50" r="8" fill="none" stroke="#fff" stroke-width="6"/>'
             + "".join(f'<line x1="{50 + 30 * c:.1f}" y1="{50 + 30 * s:.1f}" x2="{50 + 41 * c:.1f}" y2="{50 + 41 * s:.1f}" stroke="#fff" stroke-width="9" stroke-linecap="round"/>'
                       for c, s in ((1, 0), (.707, .707), (0, 1), (-.707, .707), (-1, 0), (-.707, -.707), (0, -1), (.707, -.707))))
 MIC = _svg(f'<rect x="38" y="14" width="24" height="42" rx="12" fill="#fff" {S} stroke-width="6"/><path d="M 28 46 C 28 66, 72 66, 72 46 M 50 66 L 50 82 M 36 84 L 64 84" fill="none" {S} stroke-width="6"/>')
@@ -195,14 +196,6 @@ CSS = f"""
 """
 
 
-def _hills() -> str:
-    svg = (f'<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">'
-           f'<path d="M 0 430 C 90 380 220 400 330 470 C 410 520 470 540 520 548 L 0 548 Z" fill="#4FA85A" stroke="{_INK}" stroke-width="3"/>'
-           f'<path d="M 600 548 C 700 500 860 440 1024 430 L 1024 548 Z" fill="#6BBE5F" stroke="{_INK}" stroke-width="3"/>'
-           f'<path d="M 360 548 C 420 520 520 515 580 548 Z" fill="#8FCDE8" stroke="{_INK}" stroke-width="3"/></svg>')
-    return f'<div class="hm-hills">{_ic(svg, "width:100%;height:100%;display:block")}</div>'
-
-
 def render() -> None:
     st.html(f"<style>{CSS}</style>")
     names = list_profiles()
@@ -217,7 +210,7 @@ def render() -> None:
     state = {w: stars.status(progress, w) for w in ORDER}
     best = {w: stars.best(progress, w) for w in ORDER}
     now = stars.frontier(progress)                           # the sound to do now: the first one with no star yet
-    is_open = {w: stars.unlocked(progress, w) or st.query_params.get("open") == "all" for w in ORDER}      # ?open=all: every sound open (for a teacher)
+    is_open = {w: stars.unlocked(progress, w) or st.query_params.get("open") == "all" or first_time for w in ORDER}      # ?open=all: every sound open (for a teacher); with no child saved yet nothing can be earned, so nothing is locked
     face = children.gender(child) or "boy"
     items = "".join(f'<a href="?page=home&child={quote(n)}" target="_self"{" class=on" if n == child else ""}>{"✓ " if n == child else ""}{escape(n)}</a>' for n in names)
     who = (f'<span class="av"><img src="/app/static/home_parts/{face}.png" alt=""></span><span>{escape(child)} ▾</span>' if child
@@ -231,29 +224,29 @@ def render() -> None:
         x, y = POS[w]
         cls = "done" if state[w] == "done" else "part" if best[w] else ""
         inner = _ic(CHECK) if state[w] == "done" else _ic(f'<svg viewBox="0 0 100 100">{ART[w]}</svg>')
-        start = ""
         stars_row = "★" * best[w] if best[w] else ""
         tag, link = ("a", f' href="?word={w}" target="_self"') if is_open[w] else ("div", f' title="{escape(_locked_hint(w))}"')
-        nodes += (f'<{tag} class="hm-node {cls}{"" if is_open[w] else " locked"}"{link} style="left:{u(x)};top:{u(y)}" aria-label="{escape(LESSONS[w].label)} {w}">{start}<div class="c">{inner}</div>'
+        nodes += (f'<{tag} class="hm-node {cls}{"" if is_open[w] else " locked"}"{link} style="left:{u(x)};top:{u(y)}" aria-label="{escape(LESSONS[w].label)} {w}"><div class="c">{inner}</div>'
                   f'<div class="l">{escape(LESSONS[w].label)} {w}</div><div class="s">{stars_row}</div></{tag}>')
-    # "Continue" goes to the sound to do now; once every sound has a star, to the first one without 3 stars; when all have 3, to the map
+    # "Continue" goes to the sound to do now; once every sound has a star, to the first one without 3 stars; when all have 3, to the first sound
     target_word = now or next((w for w in ORDER if best[w] < stars.MAX_STARS), None)
+    go_word = target_word or ORDER[0]
     if first_time:
         hero = (f'<div class="hm-hero"></div><div class="hm-mascot">{_mascot()}</div><div class="hm-bubble">Hi! Let\'s see your sounds!<br>嗨！一起來看見你的聲音！</div>'
                 '<a class="hm-go two" href="?page=sound" target="_self"><span>Let\'s start 開始吧<small>First, a quick sound check 先做聲音檢查</small></span></a>'
-                '<a class="hm-skip" href="?page=map" target="_self">Skip for now 先跳過</a>')
+                f'<a class="hm-skip" href="?word={ORDER[0]}" target="_self">Skip for now 先跳過</a>')
     else:
         nxt = _next_text(target_word)
         hero = (f'<div class="hm-hero"></div><div class="hm-mascot">{_mascot()}</div>'
-                f'<a class="hm-go" href="{"?word=" + target_word if target_word else "?page=map"}" target="_self">Continue 繼續</a><div class="hm-next">{nxt}</div>')
+                f'<a class="hm-go" href="?word={go_word}" target="_self">Continue 繼續</a><div class="hm-next">{nxt}</div>')
     has_room = bool(child) and load_room(child) is not None
     quick = (f'<a class="hm-quick hm-q1" href="?page=sound" target="_self">{_ic(MIC)}<span>Sound Check<small>聲音檢查 {"✓" if has_room else ""}</small></span>'
              f'{"" if has_room else "<span class=hm-pill>first time 第一次</span>"}</a>'
-             f'<a class="hm-quick hm-q2" href="?page=map" target="_self">{_ic(STAR)}<span>My Stars<small>我的星星</small></span></a>')
+             f'<a class="hm-quick hm-q2" href="?page=stars" target="_self">{_ic(STAR)}<span>My Stars<small>我的星星</small></span></a>')
     if first_time:                                          # the mockup of the first time: three steps instead of the two buttons, a flag at the end of the path and a few stars
         step = lambda n, href, icon, en, zh_, on="": f'<a class="hm-step{on}" href="{href}" target="_self"><b>{n}</b>{_ic(icon)}<span>{en}<small>{zh_}</small></span></a>'
-        quick = (f'<div class="hm-steps">{step(1, "?page=sound", MIC, "Sound check", "聲音檢查", " on")}{step(2, "?page=map", ISLAND, "Pick an island", "選一個小島")}'
-                 f'{step(3, "?page=map", STAR, "Collect stars", "收集星星")}</div>'
+        quick = (f'<div class="hm-steps">{step(1, "?page=sound", MIC, "Sound check", "聲音檢查", " on")}{step(2, f"?word={go_word}", ISLAND, "Pick an island", "選一個小島")}'
+                 f'{step(3, f"?word={go_word}", STAR, "Collect stars", "收集星星")}</div>'
                  f'<div class="hm-deco" style="left:{u(826)};top:{u(96)};width:{u(50)};height:{u(62)}">{_ic(FLAG)}</div>'
                  + "".join(f'<div class="hm-deco" style="left:{u(x)};top:{u(y)};width:{u(s)};height:{u(s)}">{_ic(_svg(f"<polygon points=\"50,6 62,36 94,38 69,58 78,92 50,73 22,92 31,58 6,38 38,36\" fill=\"{col}\" {S} stroke-width=\"7\"/>"))}</div>'
                            for x, y, s, col in ((836, 232, 30, "#FFC800"), (672, 388, 28, "#FFC800"), (968, 168, 26, "#9CC4F0"), (812, 268, 20, "#4FA85A"))))
@@ -264,8 +257,8 @@ def render() -> None:
     picture = "home_first.jpg" if first_time else "home_ret.jpg"
     picture_url = _home_picture_url(picture)
     if first_time:
-        # Reuse the existing neutral artwork over the mockup's baked-in progress.
-        for x, y, wd, ht in ((358, 108, 178, 254), (478, 345, 92, 150)):
+        # Reuse the existing neutral artwork over the mockup's baked-in progress: only the NEXT ribbon on /s/ (the /sh/ node is already grey in this picture, and a patch there cut the speech bubble).
+        for x, y, wd, ht in ((478, 345, 92, 150),):
             hot += (f'<div class="hm-live" style="position:absolute;z-index:2;pointer-events:none;left:{u(x)};top:{u(y)};width:{u(wd)};height:{u(ht)};'
                     f'background-image:url({_home_picture_url("home_ret.jpg")});background-size:{u(3072)} {u(572)};'
                     f'background-position:-{u(1024 + x)} -{u(y)}"></div>')
@@ -280,11 +273,11 @@ def render() -> None:
 _NODES = {"see": (478, 375, 570, 490), "fee": (550, 120, 650, 235), "me": (550, 268, 650, 380), "bee": (715, 145, 815, 258), "pea": (740, 318, 835, 430),
           "knee": (870, 265, 965, 378), "cheat": (870, 118, 965, 232)}
 HOT_RETURNING = [(380, 128, 525, 358, "?word=she", "/ʃ/ she"), *[(*b, f"?word={w}", w) for w, b in _NODES.items()],
-                 (63, 428, 306, 503, "NEXT", "Continue 繼續"), (660, 466, 853, 532, "?page=sound", "Sound Check 聲音檢查"), (857, 466, 1003, 532, "?page=map", "My Stars 我的星星"),
-                 (505, 18, 575, 62, "?page=map", "Stars 星星")]
+                 (63, 428, 306, 503, "NEXT", "Continue 繼續"), (660, 466, 853, 532, "?page=sound", "Sound Check 聲音檢查"), (857, 466, 1003, 532, "?page=stars", "My Stars 我的星星"),
+                 (505, 18, 575, 62, "?page=stars", "Stars 星星")]
 HOT_FIRST = [(388, 190, 515, 320, "?word=she", "/ʃ/ she"), *[(*b, f"?word={w}", w) for w, b in _NODES.items() if w != "see"], (478, 345, 570, 490, "?word=see", "/s/ see"),
-             (63, 425, 306, 500, "?page=sound", "Let's start 開始吧"), (105, 506, 262, 534, "?page=map", "Skip for now 先跳過"),
-             (604, 458, 742, 532, "?page=sound", "Sound check 聲音檢查"), (746, 458, 876, 532, "?page=map", "Pick an island 選一個小島"), (880, 458, 1018, 532, "?page=map", "Collect stars 收集星星"),
+             (63, 425, 306, 500, "?page=sound", "Let's start 開始吧"), (105, 506, 262, 534, f"?word={ORDER[0]}", "Skip for now 先跳過"),
+             (604, 458, 742, 532, "?page=sound", "Sound check 聲音檢查"), (746, 458, 876, 532, "NEXT", "Pick an island 選一個小島"), (880, 458, 1018, 532, "NEXT", "Collect stars 收集星星"),
              (358, 8, 560, 68, "?page=sound", "Add a child 新增學生")]
 TEACHER_AREAS = [(812, 15, 962, 56, TEACHER_URL, "Teachers 老師"), (968, 17, 1010, 56, "?page=sound", "Sound Check 聲音檢查")]       # the gear opens the set-up page
 
@@ -303,7 +296,7 @@ def _next_text(w: str | None) -> str:
 
 def _locked_hint(w: str) -> str:
     prev = ORDER[ORDER.index(w) - 1]
-    return f"First get a star on {_sound(prev)} {prev} · 先在 {_sound(prev)} {prev} 拿到一顆星"
+    return f"Get 2 stars on {_sound(prev)} {prev} first · 先在 {_sound(prev)} {prev} 拿到兩顆星"
 
 
 def _part(name: str, box: dict, cls: str = "", scale: float = 1.0, cx: float | None = None, cy: float | None = None, ox: float = 0, oy: float = 0) -> str:
@@ -324,7 +317,6 @@ def _live(child: str, face: str, best: dict[str, int], now: str | None) -> str:
            f'<img src="/app/static/home_parts/star.png" alt=""><b>{sum(best.values())}</b></div>'
            f'<div class="hm-live hm-patch" style="left:{u(96)};top:{u(505)};width:{u(196)};height:{u(27)};background:{rgb("card_rgb")}"></div>'
            f'<div class="hm-live hm-nexttxt" style="left:{u(70)};top:{u(505)};width:{u(230)};height:{u(27)}">{escape(_next_text(now or next((w for w in ORDER if best[w] < stars.MAX_STARS), None)))}</div>')
-    she = PARTS["nodes"]["she"]
     for w in ORDER:
         n = PARTS["nodes"][w]
         if best[w] >= 1:                                     # lit: the node in yellow, its stars under it
@@ -341,7 +333,7 @@ def _hotspots(first_time: bool, next_word: str | None, items: str, is_open: dict
     out = ""
     for x0, y0, x1, y1, href, label in (HOT_FIRST if first_time else HOT_RETURNING) + TEACHER_AREAS:
         if href == "NEXT":
-            href = f"?word={next_word}" if next_word else "?page=map"
+            href = f"?word={next_word or ORDER[0]}"
         word = href.split("=", 1)[1] if href.startswith("?word=") else None
         if word and not is_open[word]:                       # a sound not open yet: no link, a hint instead
             out += (f'<span class="hm-hot locked" role="img" aria-label="{escape(_locked_hint(word))}" title="{escape(_locked_hint(word))}" '

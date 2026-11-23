@@ -4,10 +4,13 @@ Run: streamlit run app/streamlit_app.py
 """
 import streamlit as st
 
+import bilingual
+from bilingual import bi
 from fricative import warmup
 from fricative.calibrated import create_profile, delete_profile, last_profile, list_profiles, load_profile, remember_profile
 
-st.set_page_config(page_title="Fricative practice", page_icon=":material/graphic_eq:", layout="wide")
+st.set_page_config(page_title="Fricative practice 摩擦音練習", page_icon=":material/graphic_eq:", layout="wide")
+bilingual.install(st)                       # Traditional Chinese next to the English of the labels (app/bilingual.py)
 
 
 @st.cache_resource(show_spinner="Loading the models…")
@@ -67,12 +70,13 @@ with st.sidebar:
 
 page = st.navigation(
     [
-        st.Page("app_pages/practice.py", title="Practice", icon=":material/graphic_eq:", default=True),
-        st.Page("app_pages/teacher.py", title="Teacher view", icon=":material/monitoring:"),
-        st.Page("app_pages/calibrate.py", title="Calibrate", icon=":material/tune:"),
-        st.Page("app_pages/log.py", title="Log", icon=":material/history:"),
-        st.Page("app_pages/camera_log.py", title="Camera log", icon=":material/videocam:"),
-        st.Page("app_pages/how_it_works.py", title="How it works", icon=":material/menu_book:"),
+        st.Page("app_pages/practice.py", title=bi("Practice"), icon=":material/graphic_eq:", default=True),
+        st.Page("app_pages/teacher.py", title=bi("Teacher view"), url_path="teacher", icon=":material/monitoring:"),
+        st.Page("app_pages/calibrate.py", title=bi("Calibrate"), url_path="calibrate", icon=":material/tune:"),
+        st.Page("app_pages/log.py", title=bi("Log"), url_path="log", icon=":material/history:"),
+        st.Page("app_pages/rate.py", title=bi("Rate"), url_path="rate", icon=":material/rate_review:"),
+        st.Page("app_pages/camera_log.py", title=bi("Camera log"), url_path="camera_log", icon=":material/videocam:"),
+        st.Page("app_pages/how_it_works.py", title=bi("How it works"), url_path="how_it_works", icon=":material/menu_book:"),
     ],
     position="top",
 )

@@ -60,5 +60,9 @@ def _start() -> str | None:
 
 
 def url() -> str | None:
-    """Where the components post their numbers, or None when the log is off."""
+    """Where the components post their numbers, or None when the log is off. It is off when the app is hosted (SEESOUND_CAMLOG=off): the browser would post
+    to its own 127.0.0.1, not to the server, so the numbers could never arrive."""
+    import os
+    if os.environ.get("SEESOUND_CAMLOG", "").lower() == "off":
+        return None
     return _start()

@@ -7,7 +7,6 @@ Nothing in the picture itself moves: the tongue is not animated.
 """
 from __future__ import annotations
 
-import json
 
 import streamlit.components.v2 as components
 
